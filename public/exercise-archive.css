@@ -1,0 +1,29 @@
+.archive-toggle{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:11px;line-height:1.45;padding:10px 6px 12px;cursor:pointer}
+.archive-toggle input{width:16px;height:16px;flex:none;margin:0;accent-color:var(--accent)}
+.archive-toggle:has(input:checked){color:var(--text)}
+.archive-toggle .archive-count{font-variant-numeric:tabular-nums;color:var(--subtle);margin-left:auto;font-size:10px}
+.archive-help{font-size:10px;color:var(--subtle);line-height:1.6;padding:0 6px 10px}
+.archive-section-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:1px solid var(--line);margin-top:19px;padding:18px 8px 4px;color:var(--muted);font-size:10px;font-weight:550;letter-spacing:.4px}
+.archive-section-heading>span:last-child{font-weight:400;color:var(--subtle);font-variant-numeric:tabular-nums}
+.archived-exercises .exercise-group-title{padding-top:11px}
+.archived-exercises .exercise-button{color:#8e9b86}
+.archived-exercises .exercise-button:hover{color:var(--text)}
+.archived-exercises .exercise-button.active{color:var(--accent)}
+.archive-exercise-label{display:block;margin-top:3px;color:var(--subtle);font-size:9px;font-weight:400;letter-spacing:0;line-height:1.5}
+.exercise-button.active .archive-exercise-label{color:#9ab77d}
+.archive-library-empty{padding:18px 9px;font-size:12px;color:var(--muted);line-height:1.7}
+.archive-library-empty strong{display:block;color:var(--text);font-weight:500;margin-bottom:5px}
+.archive-library-empty button{margin-top:9px;text-align:left;font-size:11px;padding:6px 0}
+.archive-selection-note{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:11px;margin-top:8px}
+.archive-selection-note .archive-exercise-label{font-size:10px}
+.mobile-archive-control{display:none}
+.archive-toggle small{display:block;font-size:9px;color:var(--subtle);margin-top:3px}
+.archive-toggle [data-archive-count]{font-variant-numeric:tabular-nums;color:var(--subtle)}
+.archive-toggle-mobile{display:none}
+.archive-section-note{font-size:10px;color:var(--subtle);padding:2px 8px 7px;line-height:1.6}
+.archive-reveal-button{display:block;width:100%;background:transparent;text-align:left;color:var(--accent);font-size:11px;line-height:1.5;padding:15px 9px;border-top:1px solid var(--line-soft);margin-top:12px}
+.archive-empty-state{margin:27px 0 34px;padding:38px 24px;background:var(--panel);border:1px solid var(--line);border-radius:12px;text-align:center}
+.archive-empty-state h2{font-size:26px;margin-bottom:12px}
+.archive-empty-state p{font-size:13px;color:var(--muted);max-width:460px;margin:0 auto 21px;line-height:1.7}
+@media(max-width:760px){.archive-toggle-mobile{display:flex;margin:0;padding:12px 0 4px}.archive-toggle-mobile input{width:18px;height:18px}.archive-empty-state{padding:28px 18px}.archive-empty-state h2{font-size:23px}}
+@media(max-width:760px){.mobile-archive-control{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 12px}.mobile-archive-control .archive-toggle{padding:10px 0 4px;font-size:11px;margin:0}.mobile-archive-control .archive-toggle input{width:18px;height:18px}.mobile-archive-control .archive-help{padding:9px 0 0;font-size:9px;text-align:right;max-width:150px}.archive-selection-note{font-size:10px;line-height:1.5;align-items:flex-start}.archive-selection-note .archive-exercise-label{font-size:10px}}

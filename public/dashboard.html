@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111512">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Training">
+<meta name="description" content="Your strength, climbing, hangboard and Kilter workout history, with protocol-based logging and workout plans.">
+<title>Training History · Fresh Start</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" href="/icons/app-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./dashboard-updates.css">
+<link rel="stylesheet" href="./progression-chart.css">
+<link rel="stylesheet" href="./chart-workspace.css">
+<link rel="stylesheet" href="./surface-view.css">
+<link rel="stylesheet" href="./exercise-archive.css">
+<link rel="stylesheet" href="./repeaters.css">
+<link rel="stylesheet" href="./calendar.css">
+<link rel="stylesheet" href="./climbing.css">
+<link rel="stylesheet" href="./hangboard.css">
+<link rel="stylesheet" href="./pwa.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Exercise library">
+    <a class="brand" href="./" aria-label="Training history home"><span class="brand-mark" aria-hidden="true">↗</span><span>TRAINING<span class="brand-light"> HISTORY</span></span></a>
+    <div class="owner"><span class="avatar" aria-hidden="true">TH</span><div><strong>Your training log</strong><span>Strength · climbing · hangboard</span></div></div>
+    <div class="sidebar-heading"><span>EXERCISE LIBRARY</span><span id="exercise-total" class="count-badge">0</span></div>
+    <label class="search-field"><span class="sr-only">Search exercises</span><span aria-hidden="true">⌕</span><input id="exercise-search" type="search" placeholder="Find an exercise…" autocomplete="off"></label>
+    <label class="sr-only" for="category-filter">Exercise category</label>
+    <select id="category-filter" class="category-select"><option value="all">All categories</option></select>
+    <label class="archive-toggle"><input id="show-archived" type="checkbox" data-show-archived aria-controls="exercise-list"><span>Show archived exercises <span data-archive-count></span><small>Not logged in over a year</small></span></label>
+    <nav id="exercise-list" class="exercise-list" aria-label="Exercises"></nav>
+    <div class="sidebar-footer"><span class="status-dot"></span><span id="archive-count">No workouts yet</span></div>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div><div class="eyebrow">YOUR TRAINING, OVER TIME</div><h1>Training history</h1><p class="page-subtitle">Strength, climbing, hangboard and Kilter workouts.</p></div>
+      <div class="header-actions"><span class="data-range" id="archive-range">Start your history</span><button id="open-entry" class="button button-primary"><span aria-hidden="true">+</span><span id="header-entry-label">Log exercise</span></button><button id="export-csv" class="button button-outline">Export view <span aria-hidden="true">↓</span></button><button type="button" id="install-app" class="button button-outline pwa-install-button" aria-haspopup="dialog" hidden><span aria-hidden="true">↙</span> Install app</button></div>
+    </header>
+    <div id="pwa-offline-status" class="pwa-status pwa-offline-status" role="status" hidden><strong>You’re offline.</strong><span>Reconnect to load or save workouts. Keep any unfinished form open.</span></div>
+    <div id="pwa-update-status" class="pwa-status pwa-update-status" role="status" hidden><strong>An app update is ready.</strong><span>Finish and save your work, then close all Training History windows and reopen the app.</span></div>
+    <div class="saved-status" id="saved-status" role="status"><span id="saved-status-text">Loading saved entries…</span><button id="retry-entries" class="text-button" hidden>Retry</button></div>
+    <nav class="view-navigation" role="tablist" aria-label="Training views"><button id="history-tab" role="tab" aria-selected="true" aria-controls="history-view" data-view="history">Strength &amp; progress</button><button id="climbing-tab" role="tab" aria-selected="false" aria-controls="climbing-view" data-view="climbing" tabindex="-1">Climbing</button><button id="hangboard-tab" role="tab" aria-selected="false" aria-controls="hangboard-view" data-view="hangboard" tabindex="-1">Hangboard</button><button id="kilter-tab" role="tab" aria-selected="false" aria-controls="kilter-view" data-view="kilter" tabindex="-1">Kilter board</button><button id="calendar-tab" role="tab" aria-selected="false" aria-controls="calendar-view" data-view="calendar" tabindex="-1">Calendar &amp; plans</button></nav>
+    <div id="history-view" role="tabpanel" aria-labelledby="history-tab">
+    <section class="mobile-library" aria-label="Select an exercise" hidden><label for="mobile-exercise">Exercise</label><select id="mobile-exercise"></select></section>
+    <label class="archive-toggle archive-toggle-mobile" hidden><input id="show-archived-mobile" type="checkbox" data-show-archived aria-controls="mobile-exercise"><span>Show archived exercises <span data-archive-count></span></span></label>
+    <section id="library-empty" class="archive-empty-state fresh-start-state" aria-labelledby="library-empty-title">
+      <div class="eyebrow">A FRESH START</div><h2 id="library-empty-title">Start your training log</h2><p id="library-empty-description">Log strength sets, climbing sessions or hangboard training. Your charts and exercise library will grow as you train.</p>
+      <div id="empty-log-options" class="empty-log-options">
+        <button type="button" class="empty-log-card" data-empty-log="history"><span aria-hidden="true">↗</span><strong>Strength</strong><small>Exercises, working sets &amp; progress</small><b>Log an exercise →</b></button>
+        <button type="button" class="empty-log-card" data-empty-log="climbing"><span aria-hidden="true">⌁</span><strong>Climbing</strong><small>Boulder, lead &amp; top rope</small><b>Log a session →</b></button>
+        <button type="button" class="empty-log-card" data-empty-log="hangboard"><span aria-hidden="true">≡</span><strong>Hangboard</strong><small>Repeater cycles &amp; max hangs</small><b>Log a workout →</b></button>
+        <button type="button" class="empty-log-card" data-empty-log="kilter"><span aria-hidden="true">∠</span><strong>Kilter board</strong><small>Problems, angles &amp; attempts</small><b>Log a session →</b></button>
+      </div>
+      <div class="empty-secondary-actions"><button type="button" id="empty-calendar" class="text-button">Open calendar &amp; plans →</button><button id="reveal-archive" class="button button-outline" hidden>Show archived exercises</button><button id="open-deleted-empty" class="text-button" disabled hidden>Deleted entries</button></div>
+    </section>
+    <div id="exercise-workspace" hidden>
+    <section class="exercise-heading">
+      <div><div id="category-label" class="category-label">EXERCISE</div><h2 id="exercise-title">Your exercise</h2><p id="exercise-description" class="muted"></p></div>
+      <div class="exercise-counts"><div><strong id="session-count">—</strong><span>logged sessions</span></div><div><strong id="entry-count">—</strong><span>records in view</span></div></div>
+    </section>
+    <section class="filter-strip" aria-label="Date filters">
+      <div class="segmented date-shortcuts" id="date-shortcuts" aria-label="Date range"><button class="active" data-period="all" aria-pressed="true">All time</button></div>
+      <div class="date-inputs"><label><span class="sr-only">Start date</span><input id="date-from" type="date" aria-label="Start date"></label><span>to</span><label><span class="sr-only">End date</span><input id="date-to" type="date" aria-label="End date"></label></div>
+    </section>
+    <p id="date-error" class="validation-message" role="alert" hidden>Choose a start date on or before the end date.</p>
+    <section class="stat-grid" aria-label="Progress summary" aria-live="polite">
+      <div class="stat"><span class="stat-label">FIRST RECORDED</span><div class="stat-value" id="first-value">—</div><span class="stat-detail" id="first-detail">—</span></div>
+      <div class="stat"><span class="stat-label">LATEST RECORDED</span><div class="stat-value" id="latest-value">—</div><span class="stat-detail" id="latest-detail">—</span></div>
+      <div class="stat"><span class="stat-label">HIGHEST WORKOUT <span class="best-dot"></span></span><div class="stat-value" id="best-value">—</div><span class="stat-detail" id="best-detail">—</span></div>
+      <div class="stat change-stat"><span class="stat-label" id="change-label">FIRST → LATEST</span><div class="stat-value" id="change-value">—</div><span class="stat-detail" id="change-detail">Point-to-point</span><span class="stat-detail change-endpoints" id="change-endpoints" hidden></span><span class="stat-detail change-range" id="change-range" hidden></span></div>
+    </section>
+    <p id="summary-basis" class="summary-basis">Points and recorded-value cards use working-set workout averages. Change follows the selected line.</p>
+    <div id="bodyweight-notice" class="bodyweight-notice" hidden><p><strong>Set your bodyweight for pull-up charts.</strong> Total load, strength estimates and volume need your bodyweight. Reps and added-load views work without it.</p><button type="button" id="set-bodyweight" class="button button-outline">Set bodyweight</button></div>
+    <section class="chart-panel" id="progression-panel">
+      <div class="section-header"><div><span class="eyebrow">PROGRESSION</span><h3 id="chart-title">Estimated strength</h3></div><span id="metric-badge" class="small-badge">Epley · 1–10 reps</span></div>
+      <div class="chart-toolbar"><div id="metric-tabs" class="metric-tabs" role="group" aria-label="Progress metric"></div><label id="min-reps-control" class="inline-control" hidden>At least <select id="min-reps"><option value="0">Any reps</option><option value="3">3 reps</option><option value="5">5 reps</option><option value="8">8 reps</option><option value="10">10 reps</option></select></label></div>
+      <div class="plot-controls"><div class="plot-basis"><span id="plot-summary-mode">Workout averages</span><span>Working sets only</span></div><label>Line<select id="line-mode"><option value="connect">Point-to-point</option><option value="bestFit">Linear best fit</option><option value="quadratic">Quadratic curve</option><option value="smooth">Smooth local average</option></select></label><label id="fit-weight-control">Fit weighting<select id="fit-weight"><option value="sets">Each set / hang</option><option value="sessions">Equal sessions</option><option value="volume">Training volume</option></select></label><label id="fit-smoothing-control" class="fit-smoothing-control" hidden>Smoothness<input id="fit-smoothing" type="range" min="20" max="100" step="5" value="55" aria-label="Curve smoothness"><output id="fit-smoothing-value" for="fit-smoothing">55%</output></label></div>
+      <div id="main-chart" class="chart-host" aria-label="Exercise progression chart"></div>
+      <div class="chart-caption"><p id="chart-description"></p><span id="plotted-count"></span></div>
+      <p id="line-note" class="plot-line-note"></p>
+      <div class="session-picker"><label for="session-select">Inspect a session</label><select id="session-select"><option value="">All recorded sessions</option></select><button id="clear-session" class="text-button" hidden>Clear selection ×</button></div>
+    </section>
+    <details class="settings-panel" id="chart-settings">
+      <summary><span>Chart settings</span><span id="settings-summary" class="settings-summary">Epley · bodyweight not set</span></summary>
+      <div class="settings-grid">
+        <label>Strength formula<select id="method"><option value="epley">Epley</option><option value="brzycki">Brzycki</option></select></label>
+        <label>Maximum reps for estimate<select id="rep-cap"><option value="5">5 reps</option><option value="8">8 reps</option><option value="10">10 reps</option><option value="12">12 reps</option><option value="15">15 reps</option></select></label>
+        <label>Bodyweight for charts (lb)<input id="bodyweight" type="number" min="1" max="1000" step="0.01" inputmode="decimal" placeholder="Not set" aria-describedby="bodyweight-help"><small id="bodyweight-help">Optional. Used for pull-up total load, strength and volume. Clear to leave it unknown.</small></label>
+        <label>Pull-up load display<select id="load-basis"><option value="total">Bodyweight + added weight</option><option value="added">Added weight equivalent</option></select></label>
+        <label>Side<select id="side-filter"><option value="all">Both / all sides</option><option value="Left">Left</option><option value="Right">Right</option></select></label>
+        <p class="working-sets-note">Graphs use completed working sets only. Warm-ups, failed attempts, practice and cool-down sets stay in the log.</p>
+      </div>
+      <div class="settings-bottom"><p>These controls change the charts. Your original records stay intact.</p><button id="reset-settings" class="text-button">Reset settings</button></div>
+      <p id="settings-error" class="validation-message" role="alert" hidden>Enter a bodyweight between 1 and 1,000 lb.</p>
+    </details>
+    <section id="surface-panel" class="surface-panel" aria-label="Three-dimensional training surface"></section>
+    <section class="secondary-grid">
+
+      <div class="context-panel"><span class="eyebrow">IN THIS VIEW</span><h3>Reading your history</h3><div id="context-content"></div><details class="method-notes"><summary>How the estimates work</summary><div><p><strong>Epley:</strong> load × (1 + reps ÷ 30). <strong>Brzycki:</strong> load × 36 ÷ (37 − reps). A completed single uses its recorded load directly.</p><p>Pull-up estimates first include bodyweight plus added weight. The added-weight view then subtracts bodyweight from the estimate.</p><p>Estimated 1RM is a rep-adjusted trend proxy, not a measured maximum. Unknown effort and reps in reserve limit precision. Each workout averages the estimates from its qualifying working sets. Whole reps within your cap qualify; fractional, kipping and unclear counts do not. Warm-ups and failed attempts are excluded from every graph. Assisted extras stay separate.</p><p>Dumbbell loads are per dumbbell. Unknown machine and band masses stay unconverted. Your entered loads and notes remain available in the session log.</p><p>Load, reps and stack settings use workout averages. Timed holds average seconds per completed hang. Volume remains a workout total of known load × base reps, including bodyweight for pull-ups. Hold totals multiply duration by hold count. These summaries include qualifying working sets only. Gaps mean gaps in this saved log, not necessarily breaks from training.</p><p class="method-source"><a href="https://www.unm.edu/~rrobergs/478RMStrengthPrediction.pdf" target="_blank" rel="noreferrer">Reynolds et al., 2006 ↗</a> <span> · </span><a href="https://doi.org/10.1123/ijspp.2016-0657" target="_blank" rel="noreferrer">Muñoz-López et al., 2017 ↗</a></p></div></details></div>
+    </section>
+    <section class="records-panel" id="records">
+      <div class="section-header"><div><span class="eyebrow">WORKOUT RECORDS</span><h3 id="records-title">Session log</h3></div><div class="log-controls"><span id="records-count" class="subtle-caption"></span><label class="sr-only" for="sort-order">Record order</label><select id="sort-order"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></div></div>
+      <div class="record-management"><button id="delete-session" class="text-button delete-session" hidden>Delete selected exercise session</button><button id="open-deleted" class="text-button" disabled>Deleted entries</button></div>
+      <div id="repeater-summary" class="session-repeater-summary" hidden></div>
+      <div class="records-table-wrap"><table class="records-table"><thead><tr><th>Date</th><th>Set</th><th>Reps / hold</th><th id="log-load-label">Load (lb)</th><th>Type</th><th>Details</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="records-body"></tbody></table></div>
+      <div id="log-empty" class="empty-state" hidden>No records match this view. Try another exercise or date range.</div>
+      <div class="table-footer"><span id="table-status"></span><button id="show-more" class="button button-outline" hidden>Show more records</button></div>
+    </section>
+    </div>
+    </div>
+    <section id="calendar-view" role="tabpanel" aria-labelledby="calendar-tab" hidden></section>
+    <section id="climbing-view" role="tabpanel" aria-labelledby="climbing-tab" hidden></section>
+    <section id="kilter-view" role="tabpanel" aria-labelledby="kilter-tab" hidden></section>
+    <section id="hangboard-view" role="tabpanel" aria-labelledby="hangboard-tab" hidden></section>
+    <footer class="page-footer"><span id="archive-footer">Your training history begins with your first workout.</span><div class="footer-downloads"><button id="export-all" class="text-button" disabled title="Load saved entries before exporting all records">Download all records (CSV) ↓</button></div></footer>
+  </main>
+</div>
+<div id="chart-tooltip" class="chart-tooltip" role="status" hidden></div>
+<div id="announcement" class="sr-only" aria-live="polite"></div>
+<div id="save-toast" class="save-toast" role="status" hidden><span id="save-toast-message"></span><button id="undo-entry" class="text-button" hidden>Undo save</button><button id="dismiss-toast" class="toast-close" aria-label="Dismiss notification">×</button></div>
+<dialog id="pwa-install-dialog" class="pwa-install-dialog" aria-labelledby="pwa-install-title" aria-describedby="pwa-install-description">
+  <div class="pwa-dialog-header"><div><div class="eyebrow">TAKE YOUR LOG WITH YOU</div><h2 id="pwa-install-title">Install Training History</h2></div><button type="button" id="pwa-close-install" class="pwa-close" aria-label="Close installation instructions">×</button></div>
+  <p id="pwa-install-description" class="pwa-dialog-intro">Open your training log from an app icon on your home screen, desktop or dock.</p>
+  <div class="pwa-install-methods">
+    <section><h3>Chrome or Edge</h3><p>Open the browser menu and look for <strong>Install app</strong> or <strong>Install Training History</strong>. On a computer, you may also see an install icon in the address bar.</p></section>
+    <section><h3>iPhone or iPad</h3><p>Open this dashboard in Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. Keep <strong>Open as Web App</strong> enabled if offered, then tap <strong>Add</strong>.</p></section>
+    <section><h3>Safari on Mac</h3><p>Open this dashboard in Safari and choose <strong>File → Add to Dock</strong>.</p></section>
+  </div>
+  <p class="pwa-install-note">Sign in with the account that has access to this log. An internet connection is required to load and save workouts.</p>
+  <div class="pwa-dialog-actions"><button type="button" id="pwa-install-now" class="button button-primary" hidden>Install now</button><button type="button" id="pwa-done-install" class="button button-outline">Done</button></div>
+</dialog>
+<script src="./data.js"></script>
+<script type="module" src="./app.js"></script>
+<script type="module" src="./pwa.js"></script>
+</body>
+</html>
+

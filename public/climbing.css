@@ -1,0 +1,294 @@
+/* Climbing and Kilter each keep their own visual and data context. */
+.climbing-tracker {
+  --climb-accent: #c5ee88;
+  --climb-accent-ink: #23341a;
+  --climb-accent-wash: #25351f;
+  --climb-border: #425637;
+  padding-top: 30px;
+  min-width: 0;
+}
+.climbing-tracker[data-kind="kilter"] {
+  --climb-accent: #efbe86;
+  --climb-accent-ink: #3a2915;
+  --climb-accent-wash: #332a1e;
+  --climb-border: #695235;
+}
+.climbing-tracker .eyebrow { display: block; color: var(--climb-accent); }
+.climbing-tracker .button { min-height: 42px; font-size: 12px; gap: 8px; }
+.climbing-tracker .text-button { min-height: 40px; font-size: 12px; color: var(--climb-accent); }
+.climbing-tracker .climb-primary { background: var(--climb-accent); border: 1px solid var(--climb-accent); color: var(--climb-accent-ink); font-weight: 700; }
+.climbing-tracker .climb-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.climbing-tracker .climb-secondary { background: var(--climb-accent-wash); border: 1px solid var(--climb-border); color: var(--climb-accent); }
+.climbing-tracker .button-outline:hover:not(:disabled) { border-color: var(--climb-accent); color: var(--climb-accent); }
+.climbing-tracker :is(button,input,select,textarea,summary):focus-visible { outline-color: var(--climb-accent); }
+.climbing-tracker button:disabled { cursor: not-allowed; }
+.climbing-tracker :is(input,select,textarea) { max-width: 100%; }
+.climbing-tracker label { display: block; min-width: 0; font-size: 12px; color: #c8d1c2; font-weight: 500; }
+.climbing-tracker label :is(input,select,textarea) { display: block; width: 100%; margin-top: 7px; min-height: 43px; font-size: 14px; font-weight: 400; }
+.climbing-tracker textarea { line-height: 1.55; }
+.climbing-tracker .climb-optional { color: var(--muted); font-size: 10px; font-weight: 400; margin-left: 4px; }
+.climbing-tracker .climb-delete-link { color: var(--red); }
+.climb-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 27px; }
+.climb-heading h2 { font-size: 34px; letter-spacing: -1px; }
+.climb-heading p { color: var(--muted); font-size: 13px; margin-top: 10px; max-width: 600px; }
+.climb-heading > .button { flex: none; }
+.climb-category-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; padding: 21px 23px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.climb-category-choice { display: flex; flex-direction: column; gap: 8px; }
+.climb-control-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 600; }
+.climb-segmented { display: flex; padding: 4px; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; }
+.climb-segmented button { min-height: 38px; padding: 8px 16px; border-radius: 5px; background: transparent; color: var(--muted); border: 1px solid transparent; font-size: 12px; white-space: nowrap; }
+.climb-segmented button:hover { color: var(--text); }
+.climb-segmented button.active { background: var(--climb-accent-wash); border-color: var(--climb-border); color: var(--climb-accent); }
+.climb-category-caption { margin-left: auto; padding-left: 24px; border-left: 1px solid var(--line); }
+.climb-category-caption strong { display: block; font-size: 13px; font-weight: 600; }
+.climb-category-caption span { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.climb-status { min-height: 38px; display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--muted); margin: 10px 0 21px; }
+.climb-status > span::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--climb-accent); margin-right: 8px; vertical-align: 2px; }
+.climbing-tracker .climb-error { color: #f3b7a9; }
+.climb-status.climb-error > span::before { background: var(--red); }
+.climb-notice { display: flex; align-items: center; gap: 18px; padding: 12px 16px; margin-bottom: 24px; border: 1px solid var(--climb-border); border-radius: 8px; background: var(--climb-accent-wash); font-size: 12px; }
+.climb-notice > span { flex: 1; }
+.climb-icon-button { display: grid; place-items: center; width: 36px; height: 36px; flex: none; padding: 0; background: transparent; color: var(--muted); font-size: 26px; border-radius: 6px; }
+.climb-icon-button:hover { color: var(--text); background: #ffffff0a; }
+.climb-history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 19px; }
+.climb-history-toolbar .eyebrow { font-size: 9px; color: var(--muted); margin-bottom: 6px; }
+.climb-history-toolbar h3 { font-size: 22px; letter-spacing: -.4px; }
+.climb-history-toolbar p { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.climb-filters { display: grid; grid-template-columns: minmax(150px,1fr) minmax(145px,.75fr) minmax(180px,1.5fr) auto; gap: 15px; align-items: end; margin-bottom: 23px; padding: 18px 20px; border: 1px solid var(--line-soft); border-radius: 10px; background: #161d17; }
+.climb-filters label { font-size: 11px; }
+.climb-filters label :is(input,select) { font-size: 12px; min-height: 41px; }
+.climb-filters > .text-button { padding-inline: 4px; }
+.climb-workout-list { display: flex; flex-direction: column; gap: 18px; padding-bottom: 20px; }
+.climb-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 50px 25px 54px; border: 1px dashed #45533e; border-radius: 12px; background: #171e17; }
+.climb-empty-mark { display: grid; place-items: center; width: 49px; height: 49px; margin-bottom: 18px; color: var(--climb-accent); background: var(--climb-accent-wash); border: 1px solid var(--climb-border); border-radius: 12px; font-size: 29px; line-height: 1; }
+.climb-empty h3 { font-size: 20px; }
+.climb-empty p { max-width: 410px; color: var(--muted); font-size: 12px; margin-top: 9px; line-height: 1.7; }
+.climb-empty .button { margin-top: 23px; }
+.climb-workout-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.climb-workout-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 25px 20px; }
+.climb-workout-card-heading > div { min-width: 0; }
+.climb-workout-date { display: block; font-size: 10px; color: var(--climb-accent); font-weight: 600; letter-spacing: .7px; text-transform: uppercase; }
+.climb-workout-card h3 { font-size: 21px; line-height: 1.35; overflow-wrap: anywhere; margin-top: 6px; }
+.climb-workout-card-heading p,.climb-deleted-card p { margin-top: 6px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.climb-workout-receipt { text-align: right; flex: none; font-size: 14px; font-variant-numeric: tabular-nums; }
+.climb-workout-receipt small { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+.climb-workout-saved-notes { white-space: pre-wrap; overflow-wrap: anywhere; color: #bcc6b5; font-size: 12px; padding: 0 25px 20px; line-height: 1.7; }
+.climb-workout-attempts { border-top: 1px solid var(--line-soft); }
+.climb-workout-attempts > summary { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; color: var(--muted); font-size: 11px; font-weight: 550; list-style: none; }
+.climb-workout-attempts > summary span { font-size: 18px; font-weight: 400; transition: transform .15s; }
+.climb-workout-attempts[open] > summary span { transform: rotate(45deg); }
+.climb-workout-attempts > div { padding: 0 25px 6px; }
+.climb-workout-attempts > summary::-webkit-details-marker,.climb-record > summary::-webkit-details-marker,.climb-attempt-editor > summary::-webkit-details-marker { display: none; }
+.climb-help { font-size: 12px; color: var(--muted); padding-bottom: 16px; }
+.climb-record { border-top: 1px solid var(--line-soft); }
+.climb-record > summary { display: grid; grid-template-columns: 26px minmax(0,1fr) auto 100px 10px; align-items: center; gap: 14px; padding: 14px 0; list-style: none; }
+.climb-record > summary::after,.climb-attempt-editor > summary::after { content: ''; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); width: 6px; height: 6px; transform: rotate(45deg); justify-self: end; margin-right: 2px; }
+.climb-record[open] > summary::after,.climb-attempt-editor[open] > summary::after { transform: rotate(225deg); }
+.climb-record-index { color: var(--subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+.climb-record-name { min-width: 0; }
+.climb-record-name strong { display: block; font-weight: 550; font-size: 13px; overflow-wrap: anywhere; }
+.climb-record-name small { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; }
+.climb-record-name .climb-record-lifetime { margin-top: 6px; color: #bdcbb3; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.climb-record-lifetime > span { display: block; color: var(--climb-accent); }
+.climb-grade-pill { border: 1px solid var(--line); background: #222c21; color: #c8d6bf; font-size: 11px; padding: 4px 9px; border-radius: 5px; text-align: center; max-width: 200px; overflow-wrap: anywhere; }
+.climb-result { justify-self: end; font-size: 10px; font-weight: 550; white-space: nowrap; }
+.climb-finished { color: var(--climb-accent); }
+.climb-finished::before { content: '✓'; margin-right: 6px; }
+.climb-unfinished { color: var(--muted); }
+.climb-record-content { padding: 0 0 18px 40px; }
+.climb-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.climb-tags span { font-size: 10px; padding: 3px 8px; border: 1px solid #3a4934; border-radius: 100px; color: #b8c7ad; overflow-wrap: anywhere; max-width: 100%; }
+.climb-record-facts { display: flex; flex-wrap: wrap; gap: 18px 30px; margin: 0; }
+.climb-record-facts dt { color: var(--subtle); font-size: 10px; margin-bottom: 3px; }
+.climb-record-facts dd { color: #c8d1c2; font-size: 12px; margin: 0; }
+.climb-record-notes { font-size: 12px; color: #b8c4af; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 16px; border-left: 2px solid var(--climb-border); padding-left: 13px; line-height: 1.65; }
+.climb-workout-actions { display: flex; align-items: center; gap: 18px; justify-content: space-between; padding: 16px 25px; border-top: 1px solid var(--line-soft); }
+.climbing-tracker .climb-workout-actions .button { min-height: 37px; font-size: 11px; }
+.climb-delete-confirm { background: #2a211d; border-top: 1px solid #654238; padding: 17px 25px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.climb-delete-confirm p { flex: 1 1 300px; color: #e0b8ac; font-size: 12px; }
+.climbing-tracker .climb-danger { background: #e4a394; border: 1px solid #e4a394; color: #3a221b; }
+.climb-deleted-card { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 22px 25px; opacity: .85; }
+.climb-deleted-card > div { min-width: 0; }
+.climb-dialog { color: var(--text); background: var(--panel); border: 1px solid #4a5a40; border-radius: 14px; padding: 0; width: min(900px,calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 40px); overflow: hidden; box-shadow: 0 26px 100px #000a; }
+.climb-dialog::backdrop { background: #060a07cc; backdrop-filter: blur(5px); }
+.climb-editor-form { margin: 0; display: flex; flex-direction: column; max-height: calc(100dvh - 42px); }
+.climb-dialog-heading { padding: 24px 28px 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex: none; border-bottom: 1px solid var(--line); }
+.climb-dialog-heading .eyebrow { font-size: 9px; margin-bottom: 7px; }
+.climb-dialog-heading h2 { font-size: 26px; letter-spacing: -.6px; }
+.climb-dialog-heading p { font-size: 12px; color: var(--muted); margin-top: 7px; }
+.climb-form-scroll { min-width: 0; min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #4a5a40 transparent; }
+.climb-form-content { min-width: 0; padding: 23px 28px 26px; border: 0; margin: 0; }
+.climb-workout-basics { display: grid; grid-template-columns: 165px minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+[data-kind="kilter"] .climb-workout-basics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.climb-workout-basics small { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; font-weight: 400; }
+.climb-form-context { font-size: 10px; color: var(--muted); margin: 13px 0 24px; line-height: 1.65; }
+.climb-add-panel { margin-top: 22px; padding: 20px; border: 1px solid var(--climb-border); border-radius: 10px; background: #151e15; }
+[data-kind="kilter"] .climb-add-panel { background: #211e18; }
+.climb-add-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 17px; }
+.climb-add-heading h3 { font-size: 17px; }
+.climb-add-heading p { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.climbing-tracker .climb-add-heading .button { min-height: 38px; font-size: 11px; }
+.climb-picker-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 12px; }
+.climb-picker-row select { text-overflow: ellipsis; }
+.climb-picker-row > .button { min-height: 43px; }
+.climb-picker-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 18px; margin-top: 13px; }
+.climbing-tracker .climb-checkbox { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; min-height: 26px; }
+.climbing-tracker .climb-checkbox input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: var(--climb-accent); }
+.climb-picker-footer > span { color: var(--subtle); font-size: 10px; }
+.climb-attempts-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 0 13px; }
+.climb-attempts-heading h3 { font-size: 18px; }
+.climb-attempts-heading > span { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.climb-empty-attempts { border: 1px dashed #3e4a38; border-radius: 8px; padding: 23px; text-align: center; background: #171d17; }
+.climb-empty-attempts strong { font-size: 12px; font-weight: 550; color: #c1cbb9; }
+.climb-empty-attempts p { font-size: 11px; color: var(--muted); margin: 7px auto 0; max-width: 410px; line-height: 1.65; }
+.climb-attempt-editor { border: 1px solid #3a4634; border-radius: 10px; background: #1b241b; margin-bottom: 12px; }
+.climb-attempt-editor[open] { border-color: var(--climb-border); }
+.climb-attempt-editor > summary { display: grid; grid-template-columns: 30px minmax(0,1fr) auto 10px; align-items: center; gap: 12px; list-style: none; padding: 17px 20px; }
+.climb-attempt-number { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 7px; background: var(--climb-accent-wash); color: var(--climb-accent); font-size: 11px; font-variant-numeric: tabular-nums; }
+.climb-attempt-editor > summary strong { display: block; font-size: 13px; font-weight: 550; overflow-wrap: anywhere; }
+.climb-attempt-editor > summary small { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.climb-editor-result { color: var(--muted); font-size: 10px; }
+.climb-attempt-fields { display: flex; flex-direction: column; gap: 16px; padding: 3px 20px 18px; }
+.climb-grade-fields { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 13px; }
+.climb-attempt-measures { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; }
+.climb-rest-angle { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; }
+.climb-attempt-count-help { color: var(--muted); font-size: 10px; line-height: 1.6; margin-top: -5px; }
+.climb-angle-help { color: var(--muted); font-size: 10px; margin-top: -8px; }
+.climb-tag-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px; }
+.climb-tag-suggestions button { border: 1px solid #3a4933; color: var(--muted); border-radius: 100px; padding: 5px 10px; min-height: 29px; font-size: 10px; background: transparent; }
+.climb-tag-suggestions button:hover,.climb-tag-suggestions button[aria-pressed="true"] { color: var(--climb-accent); background: var(--climb-accent-wash); border-color: var(--climb-border); }
+.climb-attempt-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 18px; border-top: 1px solid var(--line); padding-top: 10px; }
+.climbing-tracker .climb-attempt-actions .text-button { font-size: 11px; min-height: 35px; }
+.climb-workout-notes { margin-top: 24px; }
+.climb-dialog-footer { flex: none; padding: 16px 28px; border-top: 1px solid #3d4b35; background: #1b241b; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.climb-dialog-footer > span { font-size: 10px; color: var(--muted); }
+.climb-dialog-footer > div { display: flex; gap: 10px; }
+.climb-form-error { flex: none; max-height: 24dvh; overflow: auto; padding: 11px 28px; border-top: 1px solid #654238; color: #f3b7a9; background: #2b211d; font-size: 12px; }
+.climb-form-error .text-button { display: block; margin-top: 3px; }
+/* Saved-name suggestions use explicit selection and remain inside the scrollable form. */
+.climb-picker-search { margin-bottom: 14px; }
+.climb-name-picker { position: relative; min-width: 0; }
+.climbing-tracker .climb-dialog .climb-name-picker [data-attempt-field="name"] { padding-right: 45px; }
+.climb-name-browse { position: absolute; right: 6px; top: 29px; display: grid; place-items: center; width: 33px; height: 33px; padding: 0; color: var(--climb-accent); background: transparent; border-radius: 5px; font-size: 22px; }
+.climb-name-browse:hover { background: var(--climb-accent-wash); }
+.climb-name-popover { min-width: 0; margin-top: 7px; border: 1px solid var(--climb-border); border-radius: 8px; overflow: hidden; background: #152015; box-shadow: 0 8px 22px #0002; }
+[data-kind="kilter"] .climb-name-popover { background: #211f18; }
+.climb-name-popover-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 10px 5px 13px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.climb-name-close { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; color: var(--muted); background: transparent; border-radius: 5px; font-size: 22px; }
+.climb-name-close:hover { color: var(--text); background: #ffffff08; }
+.climb-name-list { max-height: min(280px,35dvh); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--climb-border) transparent; }
+.climb-name-option { display: block; width: 100%; min-height: 59px; padding: 11px 13px; color: var(--text); background: transparent; border-bottom: 1px solid var(--line-soft); text-align: left; line-height: 1.5; white-space: normal; }
+.climb-name-option:last-child { border-bottom: 0; }
+.climb-name-option:hover,.climb-name-option[aria-selected="true"] { background: var(--climb-accent-wash); }
+.climb-name-option[aria-selected="true"] { box-shadow: inset 3px 0 var(--climb-accent); }
+.climb-name-option > strong { display: block; color: var(--climb-accent); font-size: 12px; font-weight: 550; overflow-wrap: anywhere; }
+.climb-name-option > span { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; overflow-wrap: anywhere; }
+.climb-name-empty { padding: 15px 13px; color: var(--muted); font-size: 11px; line-height: 1.65; }
+.climb-name-popover-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 3px 12px; padding: 7px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.climbing-tracker .climb-name-popover-footer .text-button { min-height: 33px; font-size: 10px; }
+@media (max-width: 1040px) {
+  .climb-category-panel { gap: 18px; }
+  .climb-category-caption { flex-basis: 100%; margin-left: 0; padding: 13px 0 0; border-left: 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; }
+  .climb-category-caption span { margin-top: 0; }
+  .climb-filters { grid-template-columns: 1fr 1fr; }
+  .climb-filters > .text-button { justify-self: end; }
+}
+@media (max-width: 680px) {
+  .climb-name-browse { top: 28px; height: 35px; }
+  .climb-name-list { max-height: min(260px,35dvh); }
+  .climb-name-option { min-height: 64px; padding: 11px 12px; }
+  .climb-name-popover-heading { padding-left: 12px; font-size: 9px; }
+  .climb-name-popover-footer { padding-inline: 12px; font-size: 9px; }
+  .climbing-tracker .climb-name-popover-footer .text-button { min-height: 36px; }
+  .climbing-tracker { padding-top: 23px; }
+  .climb-heading { align-items: flex-start; gap: 16px; flex-direction: column; margin-bottom: 23px; }
+  .climb-heading h2 { font-size: 29px; }
+  .climb-heading p { font-size: 12px; }
+  .climb-heading > .button { align-self: flex-start; min-height: 44px; }
+  .climb-category-panel { padding: 17px; gap: 16px; }
+  .climb-category-choice { flex: 1 1 auto; }
+  .climb-segmented button { flex: 1; min-height: 40px; padding-inline: 12px; }
+  .climb-category-caption { display: block; padding-top: 12px; }
+  .climb-category-caption span { margin-top: 4px; }
+  .climb-status { margin-bottom: 17px; font-size: 10px; }
+  .climb-history-toolbar { gap: 15px; align-items: flex-end; }
+  .climb-history-toolbar h3 { font-size: 20px; }
+  .climb-history-toolbar > .text-button { font-size: 10px; max-width: 105px; text-align: right; }
+  .climb-filters { padding: 15px; gap: 14px 10px; }
+  .climbing-tracker .climb-filters :is(input,select) { font-size: 16px; min-height: 44px; padding-inline: 8px; }
+  .climb-filters .climb-search-label { grid-column: 1 / -1; }
+  .climb-filters > .text-button { grid-column: 1 / -1; min-height: 24px; margin-top: -2px; }
+  .climb-workout-card-heading { padding: 19px 18px 17px; gap: 15px; }
+  .climb-workout-card h3 { font-size: 19px; }
+  .climb-workout-receipt { font-size: 12px; }
+  .climb-workout-saved-notes { padding-inline: 18px; }
+  .climb-workout-attempts > summary { padding-inline: 18px; }
+  .climb-workout-attempts > div { padding-inline: 18px; }
+  .climb-record > summary { grid-template-columns: 18px minmax(0,1fr) auto; gap: 7px 10px; }
+  .climb-record-index { grid-row: 1 / 3; align-self: start; padding-top: 3px; }
+  .climb-record-name { grid-column: 2; }
+  .climb-grade-pill { grid-column: 3; max-width: 100px; font-size: 10px; padding-inline: 6px; }
+  .climb-result { grid-column: 2; justify-self: start; }
+  .climb-record > summary::after { grid-column: 3; }
+  .climb-record-content { padding-left: 28px; }
+  .climb-record-facts { gap: 13px 20px; }
+  .climb-workout-actions { padding: 13px 18px; gap: 10px; }
+  .climbing-tracker .climb-workout-actions .text-button { font-size: 10px; }
+  .climb-delete-confirm { padding: 16px 18px; }
+  .climb-deleted-card { padding: 19px 18px; flex-direction: column; align-items: flex-start; gap: 15px; }
+  .climb-notice { gap: 9px; flex-wrap: wrap; padding: 10px 13px; }
+  .climb-notice > span { flex-basis: calc(100% - 45px); }
+  .climb-notice > .climb-icon-button { order: -1; }
+  .climb-empty { padding: 35px 21px 39px; }
+  .climb-empty h3 { font-size: 18px; }
+  .climb-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 12px; }
+  .climb-editor-form { max-height: calc(100dvh - 22px); }
+  .climb-dialog-heading { padding: 19px 18px 17px; gap: 10px; }
+  .climb-dialog-heading h2 { font-size: 23px; }
+  .climb-dialog-heading p { font-size: 11px; }
+  .climb-dialog-heading .climb-icon-button { width: 31px; height: 31px; }
+  .climb-form-content { padding: 18px; }
+  .climb-workout-basics { grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); gap: 15px 10px; }
+  .climb-workout-basics .climb-title-field { grid-column: 1 / -1; }
+  [data-kind="kilter"] .climb-workout-basics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  [data-kind="kilter"] .climb-workout-basics .climb-title-field { grid-column: auto; }
+  .climb-workout-basics small { font-size: 9px; }
+  .climb-form-context { margin-bottom: 19px; }
+  .climbing-tracker .climb-dialog label :is(input,select,textarea) { font-size: 16px; min-height: 44px; padding-inline: 10px; }
+  .climb-add-panel { padding: 16px 13px; }
+  .climb-add-heading { gap: 11px; align-items: flex-start; }
+  .climb-add-heading h3 { font-size: 16px; }
+  .climb-add-heading p { font-size: 10px; }
+  .climbing-tracker .climb-add-heading .button { font-size: 10px; padding-inline: 10px; flex: none; }
+  .climb-picker-row { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .climb-picker-row > .button { justify-self: end; }
+  .climb-picker-footer { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .climbing-tracker .climb-dialog .climb-checkbox input { min-height: 0; width: 18px; height: 18px; }
+  .climb-attempts-heading { margin-top: 0; gap: 10px; }
+  .climb-attempts-heading h3 { font-size: 16px; }
+  .climb-attempts-heading > span { font-size: 9px; }
+  .climb-attempt-editor > summary { padding: 14px 13px; grid-template-columns: 25px minmax(0,1fr) 10px; gap: 8px; }
+  .climb-attempt-number { width: 25px; height: 27px; grid-row: 1 / 3; align-self: start; }
+  .climb-attempt-editor > summary > span:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .climb-attempt-editor > summary::after { grid-column: 3; grid-row: 1 / 3; }
+  .climb-editor-result { grid-column: 2; font-size: 9px; }
+  .climb-attempt-fields { padding: 3px 13px 14px; gap: 15px; }
+  .climb-grade-fields { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px 10px; }
+  .climb-grade-fields > label:first-child { grid-column: 1 / -1; }
+  .climb-attempt-measures { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px 10px; }
+  .climb-attempt-measures > label:last-child { grid-column: 1 / -1; }
+  .climb-rest-angle { gap: 10px; }
+  .climb-rest-angle > label:only-child { grid-column: 1 / -1; }
+  .climbing-tracker .climb-attempt-fields label { font-size: 11px; }
+  .climbing-tracker .climb-optional { font-size: 9px; margin-left: 2px; }
+  .climb-tag-suggestions button { min-height: 33px; }
+  .climb-attempt-actions { flex-direction: column; align-items: flex-start; gap: 2px; padding-top: 8px; }
+  .climb-dialog-footer { padding: 13px 18px; align-items: stretch; flex-direction: column; gap: 10px; }
+  .climb-dialog-footer > span { font-size: 9px; }
+  .climb-dialog-footer > div { justify-content: flex-end; }
+  .climbing-tracker .climb-dialog-footer .button { min-height: 44px; }
+  .climb-form-error { padding: 11px 18px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .climb-workout-attempts > summary span { transition: none; }
+}

@@ -1,0 +1,65 @@
+/* Installation controls stay secondary to logging a workout. */
+.pwa-install-button { white-space: nowrap; }
+.pwa-install-button > span { font-size: 16px; line-height: 1; }
+.pwa-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 12px 15px;
+  margin: 15px 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.pwa-status strong { color: var(--text); font-weight: 600; }
+.pwa-offline-status { border-color: #786040; background: #282419; }
+.pwa-update-status { border-color: #4b6138; background: #1c281b; }
+.pwa-install-button[hidden], .pwa-status[hidden], #pwa-install-now[hidden] { display: none; }
+.pwa-install-dialog {
+  width: min(590px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid #4a5a40;
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 22px 80px #0008;
+  scrollbar-color: #4a5a40 transparent;
+}
+.pwa-install-dialog::backdrop { background: #050b09c9; backdrop-filter: blur(4px); }
+.pwa-dialog-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.pwa-dialog-header h2 { font-size: 26px; line-height: 1.2; letter-spacing: -.6px; }
+.pwa-dialog-header .eyebrow { margin-bottom: 10px; }
+.pwa-close { flex: none; width: 36px; height: 36px; margin: -5px -8px 0 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 27px; line-height: 1; }
+.pwa-close:hover { color: var(--text); background: #2a3526; }
+.pwa-dialog-intro { color: var(--muted); font-size: 13px; line-height: 1.75; margin: 17px 0 21px; }
+.pwa-install-methods { display: grid; gap: 12px; }
+.pwa-install-methods section { border: 1px solid var(--line-soft); background: #141b15; border-radius: 8px; padding: 15px 17px; }
+.pwa-install-methods h3 { color: var(--accent); font-size: 13px; letter-spacing: 0; font-weight: 600; margin-bottom: 7px; }
+.pwa-install-methods p { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.pwa-install-methods strong { color: var(--text); font-weight: 550; }
+.pwa-install-note { margin: 18px 0 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.pwa-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 23px; }
+@media (max-width: 760px) {
+  .header-actions .pwa-install-button { font-size: 11px; }
+  .pwa-status { font-size: 11px; padding: 10px 12px; }
+}
+@media (max-width: 480px) {
+  .pwa-install-dialog { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: 22px 18px; }
+  .pwa-dialog-header { gap: 12px; }
+  .pwa-dialog-header h2 { font-size: 23px; }
+  .pwa-dialog-header .eyebrow { font-size: 8px; }
+  .pwa-dialog-intro { font-size: 12px; }
+  .pwa-install-methods section { padding: 13px 14px; }
+  .pwa-dialog-actions .button { min-height: 42px; }
+}
+@media (display-mode: standalone) {
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .sidebar { height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .pwa-install-button { display: none; }
+}

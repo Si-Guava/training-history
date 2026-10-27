@@ -1,0 +1,1 @@
+window.TRAINING_DATA = {"settings": {}, "stats": {"source_entries": 0, "standardized_entries": 0, "omitted_blank_entries": 0, "sessions": 0, "exercises": 0, "first_date": null, "latest_date": null, "category_counts": {}, "category_exercises": {}}, "records": [], "exercise_index": [], "omitted": [], "rules": []};

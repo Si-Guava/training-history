@@ -1,0 +1,55 @@
+.progress-chart .plot-grid{stroke-dasharray:none;opacity:.62}
+.progress-chart .progress-connection,.progress-chart .progress-fit{pointer-events:none;stroke-dasharray:none}
+.progress-legend{position:absolute;top:2px;left:2px;right:2px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;font-size:10px;line-height:1.5;color:#aabd9d;pointer-events:none}
+.progress-set-legend{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.progress-legend-title{color:#92a18a;font-size:9px;letter-spacing:.2px}
+.progress-legend-item{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums;color:#ced9c5}
+.progress-legend-item i,.progress-point-key i,.progress-neighbor>i{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
+.progress-legend-more{font-size:9px;color:#92a18a}
+.progress-color-key{position:relative;pointer-events:auto;font-size:9px}
+.progress-color-key summary{color:#b6cba6;cursor:pointer;list-style:none;padding:2px 0;text-decoration:underline;text-underline-offset:3px}
+.progress-color-key summary::after{content:"⌄";display:inline-block;margin-left:4px;text-decoration:none}
+.progress-color-key[open] summary{color:var(--accent)}
+.progress-color-key-list{position:absolute;right:0;top:calc(100% + 7px);z-index:12;width:235px;max-width:calc(100vw - 48px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 9px;padding:15px;background:#253020;border:1px solid #526648;border-radius:8px;box-shadow:0 7px 25px #0006;max-height:240px;overflow-y:auto}
+.progress-color-key-list .progress-legend-item{font-size:10px;white-space:nowrap}
+.progress-line-legend{display:inline-flex;align-items:center;gap:7px;color:#a1b195;font-size:9px}
+.progress-line-legend i{display:inline-block;width:19px;height:2px;border-radius:1px}
+.progress-tooltip{pointer-events:auto;z-index:55;width:max-content;min-width:240px;max-width:min(370px,calc(100vw - 20px));max-height:min(480px,calc(100dvh - 20px));overflow:auto;padding:12px 14px;background:#253020;box-shadow:0 10px 35px #0007}
+.progress-tooltip-head{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.progress-tooltip-head strong{margin:0}
+.progress-tooltip-close{display:grid;place-items:center;width:25px;height:25px;background:none;color:var(--muted);font-size:22px;line-height:1;border-radius:4px}
+.progress-tooltip-close:hover{color:var(--text);background:#3b4932}
+.progress-tooltip .tooltip-value{font-size:20px;margin:4px 0 6px}
+.progress-tooltip .progress-tooltip-label{font-size:10px;color:#b8cba9}
+.progress-tooltip .progress-point-key{display:flex;align-items:center;gap:7px;font-size:10px;color:#b8cba9}
+.progress-set-list{list-style:none;margin:8px 0 0;padding:0;max-height:235px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#697a58 transparent}
+.progress-set-list li{display:flex;justify-content:space-between;gap:17px;padding:8px 1px;border-top:1px solid #405038;line-height:1.4}
+.progress-set-list .progress-set-name{min-width:50px;color:#cbdac1;font-size:10px;white-space:nowrap}
+.progress-set-list .progress-set-detail{text-align:right;color:#e2ebda;font-size:11px;max-width:245px}
+.progress-set-list small{display:block;color:#9eaf91;font-size:9px;margin-top:3px;white-space:normal}
+.progress-nearby-list{max-height:265px;overflow:auto;scrollbar-width:thin;scrollbar-color:#697a58 transparent;margin-top:10px}
+.progress-nearby-group+.progress-nearby-group{margin-top:11px;padding-top:11px;border-top:1px solid #617451}
+.progress-nearby-group h4{display:flex;justify-content:space-between;gap:16px;align-items:baseline;margin:0;font-size:10px;font-weight:500}
+.progress-nearby-group h4 strong{color:var(--accent);margin:0;font-size:12px;font-weight:550;white-space:nowrap}
+.progress-nearby-group .progress-nearby-meta{font-size:9px;color:#a3b694;margin-top:3px}
+.progress-nearby-group .progress-set-list{max-height:none;overflow:visible;margin-top:5px}
+.progress-neighbors{margin-top:10px;border-top:1px solid #405038;padding-top:8px}
+.progress-neighbors summary{font-size:10px;color:#b7cba8;cursor:pointer}
+.progress-neighbors .progress-nearby-list{margin-top:5px;max-height:175px}
+.progress-neighbor{display:grid;grid-template-columns:7px minmax(0,1fr) auto;gap:8px;align-items:center;text-align:left;width:100%;border:0;border-top:1px solid #405038;background:transparent;padding:8px 0;color:#d8e4ce;font-size:10px}
+.progress-neighbor:hover{background:#304127}
+.progress-neighbor span{line-height:1.4}
+.progress-neighbor small{display:block;color:#97ad89;font-size:9px}
+.progress-neighbor strong{font-size:10px;font-weight:500;margin:0!important;white-space:nowrap}
+.progress-tooltip-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:9px}
+.progress-inspect{font-size:11px;color:var(--accent);background:#334329;border:1px solid #5f774a;border-radius:5px;padding:7px 10px;min-height:33px}
+.progress-inspect:hover{background:#405432}
+.progress-tooltip .progress-tooltip-help{font-size:9px;color:#96aa88;margin-top:9px}
+.chart-view-controls{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:10px 0 3px}
+.chart-view-controls label{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
+.chart-view-controls select{font-size:11px;min-height:34px;padding:6px 29px 6px 9px}
+.chart-line-note{font-size:10px;color:var(--muted);line-height:1.5;margin-top:3px}
+.plot-controls .fit-smoothing-control{display:grid;grid-template-columns:auto minmax(80px,130px) auto;gap:8px;align-items:center}.fit-smoothing-control input{padding:0;accent-color:var(--accent);width:100%;min-width:80px}.fit-smoothing-control output{font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted)}.plot-line-note{line-height:1.65}
+@media(max-width:460px){.progress-tooltip{min-width:220px;padding:10px 12px}.progress-set-list{max-height:200px}.progress-set-list li{gap:10px}.progress-set-list .progress-set-detail{max-width:190px}.progress-inspect{min-height:39px}.progress-tooltip-close{width:32px;height:30px}.chart-view-controls{gap:9px;align-items:stretch}.chart-view-controls label{flex:1;flex-direction:column;align-items:stretch;gap:5px;font-size:10px}.chart-view-controls select{font-size:12px;min-height:38px}.chart-line-note{font-size:9px}}
+
+.progress-contributors{font-size:10px;line-height:1.5;color:#c4d5b7;margin:10px 0 2px}.progress-exclusions{font-size:9px;line-height:1.55;color:#a3b497;margin:9px 0 0}.progress-contributors+.progress-set-list{margin-top:2px}
