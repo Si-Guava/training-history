@@ -1,6 +1,7 @@
 /** Pure Monday–Sunday summaries. Plans, recorded work and training units stay distinct. */
 import { analyze } from './analytics.js';
-import { buildClimbAttemptTotals } from './climbing-model.js';
+import { summarizeClimbing } from './climbing-analytics-model.js';
+import { summarizeMaxHangs } from './hangboard-analytics-model.js';
 import { getTrainingToday } from './exercise-archive.js';
 
 export const TRAINING_TYPES = Object.freeze([
@@ -156,7 +157,10 @@ function deduplicate(items,idKey='id') {
     if(!item||typeof item!=='object')continue;
     if(!item[idKey]){withoutIds.push(item);continue;}
     const previous=byId.get(item[idKey]);
-    if(!previous||Number(item.revision||0)>=Number(previous.revision||0))byId.set(item[idKey],item);
+    const revision=value=>Number.isSafeInteger(value?.revision)?value.revision:0;
+    const stamp=value=>String(value?.updated_at||value?.updatedAt||value?.created_at||'');
+    const order=previous ? revision(item)-revision(previous)||stamp(item).localeCompare(stamp(previous))||Number(Boolean(item.deleted_at||item.deletedAt))-Number(Boolean(previous.deleted_at||previous.deletedAt))||JSON.stringify(item).localeCompare(JSON.stringify(previous)) : 1;
+    if(!previous||order>0)byId.set(item[idKey],item);
   }
   return [...byId.values(),...withoutIds];
 }
@@ -172,7 +176,7 @@ function itemBase(id,date,exercise,type,source,category='') {
  * - muscle planned/actual Primary/Secondary values count exercise blocks. Strength sets,
  *   climbing sessions and hang sets are separate, never weighted into a synthetic score.
  */
-export function buildWeekSummary({date=localDate(),today=localDate(),records=[],plans=[],climbingWorkouts=[],hangboardWorkouts=[],types}={}) {
+export function buildWeekSummary({date=localDate(),today=localDate(),records=[],plans=[],climbingWorkouts=[],hangboardWorkouts=[],types,maxHangCondition=null}={}) {
   const dates=weekDays(date),start=dates[0],end=dates[6],todayDate=localDate(today);
   const selected=new Set(types==null?TRAINING_TYPES.map(type=>type.id):types instanceof Set?[...types]:list(types));
   const within=item=>active(item)&&dateString(item.date)&&item.date>=start&&item.date<=end;
@@ -218,25 +222,34 @@ export function buildWeekSummary({date=localDate(),today=localDate(),records=[],
     actualItems.push(item);
   }
 
+  const selectedClimbing=[];
   for(const workout of deduplicate(climbingWorkouts).filter(within)) {
     const attempts=deduplicate(workout.attempts).filter(active);
     if(!attempts.length)continue;
     const inferred=classifyTraining(workout.title);
-    const type=workout.trainingType?classifyTraining(workout.title,workout.trainingType):inferred==='climbing_4x4'?'climbing_4x4':classifyTraining(workout.title,workout.category);
+    const type=workout.category==='kilter'?'kilter':workout.trainingType?classifyTraining(workout.title,workout.trainingType):inferred==='climbing_4x4'?'climbing_4x4':classifyTraining(workout.title,workout.category);
     if(!selected.has(type))continue;
     const item=itemBase(`climbing:${workout.id}`,workout.date,workout.title||typeInfo.get(type)?.label||'Climbing',type,'climbing');
     item.climbingSessions=1;
-    item.attempts=[...buildClimbAttemptTotals([{...workout,attempts}]).values()].reduce((sum,total)=>sum+total.attempts,0);
-    item.sends=attempts.filter(attempt=>attempt.completed===true).length;
+    item.climbingAnalytics=summarizeClimbing([{...workout,attempts}]);
+    item.attempts=item.climbingAnalytics.totals.attempts;
+    item.sends=item.climbingAnalytics.totals.sends;
+    item.climbsAttempted=item.climbingAnalytics.totals.distinctClimbs;
+    item.climbingCategory=workout.category;
+    selectedClimbing.push({...workout,attempts});
     actualItems.push(item);
   }
 
+  const selectedHangs=[];
   for(const workout of hangs.filter(within)) {
     const sets=deduplicate(workout.sets).filter(active);
     if(!sets.length)continue;
     const type=classifyTraining(workout.title,workout.protocol);
     if(!selected.has(type))continue;
     const item=itemBase(`hangboard:${workout.id}`,workout.date,workout.title||typeInfo.get(type)?.label||'Hangboard',type,'hangboard');
+    item.maxHangAnalytics=summarizeMaxHangs([{...workout,sets}],{conditionKey:maxHangCondition||null});
+    item.maxHangSeconds=item.maxHangAnalytics.holds.reduce((sum,hold)=>sum+hold.seconds,0);
+    selectedHangs.push({...workout,sets});
     for(const set of sets) {
       if(set.isWarmup===true||set.status==='failed')continue;
       const seconds=list(set.segments).reduce((sum,part)=>sum+(positive(part?.seconds)&&Number.isInteger(part.count)&&part.count>0?part.seconds*part.count:0),0);
@@ -250,6 +263,13 @@ export function buildWeekSummary({date=localDate(),today=localDate(),records=[],
   const dayByDate=new Map(days.map(day=>[day.date,day]));
   const byType=Object.fromEntries(TRAINING_TYPES.map(type=>[type.id,{...type,...counts()}]));
   const summary={start,end,today:todayDate,isCurrent:start<=todayDate&&end>=todayDate,isFuture:start>todayDate,...counts(),days,byType,plannedItems,actualItems};
+  summary.performance={
+    boulder:summarizeClimbing(selectedClimbing,{categories:['indoor_boulder','outdoor_boulder']}),
+    kilter:summarizeClimbing(selectedClimbing,{categories:['kilter']}),
+    lead:summarizeClimbing(selectedClimbing,{categories:['indoor_lead','outdoor_lead']}),
+    toprope:summarizeClimbing(selectedClimbing,{categories:['indoor_toprope','outdoor_toprope']}),
+    maxHangs:summarizeMaxHangs(selectedHangs,{conditionKey:maxHangCondition||null}),
+  };
   const add=(targets,key,value=1)=>targets.forEach(target=>{target[key]+=value;});
   for(const item of plannedItems) {
     const day=dayByDate.get(item.date),destinations=[summary,day,byType[item.type]];
@@ -267,7 +287,7 @@ export function buildWeekSummary({date=localDate(),today=localDate(),records=[],
   for(const day of days){day.trainingDays=day.actualItems.length?1:0;day.plannedDays=day.plannedItems.length?1:0;}
   for(const type of TRAINING_TYPES){byType[type.id].trainingDays=new Set(actualItems.filter(item=>item.type===type.id).map(item=>item.date)).size;byType[type.id].plannedDays=new Set(plannedItems.filter(item=>item.type===type.id).map(item=>item.date)).size;}
 
-  const muscles=MUSCLE_GROUPS.map(muscle=>({...muscle,plannedPrimary:0,plannedSecondary:0,actualPrimary:0,actualSecondary:0,plannedSets:0,plannedSecondarySets:0,unknownPlannedSets:0,workingSets:0,secondarySets:0,climbingSessions:0,secondaryClimbingSessions:0,hangSets:0,secondaryHangSets:0}));
+  const muscles=MUSCLE_GROUPS.map(muscle=>({...muscle,plannedPrimary:0,plannedSecondary:0,actualPrimary:0,actualSecondary:0,plannedSets:0,plannedSecondarySets:0,unknownPlannedSets:0,workingSets:0,secondarySets:0,climbingSessions:0,secondaryClimbingSessions:0,climbingAttempts:0,secondaryClimbingAttempts:0,hangSets:0,secondaryHangSets:0,maxHangSeconds:0,secondaryMaxHangSeconds:0}));
   const muscleById=new Map(muscles.map(muscle=>[muscle.id,muscle]));
   const unmapped=new Map();
   const trackUnmapped=(item,field)=>{
@@ -277,6 +297,7 @@ export function buildWeekSummary({date=localDate(),today=localDate(),records=[],
     const entry=unmapped.get(key);entry[field]++;if(field==='actual')entry.workingSets+=item.workingSets;
   };
   for(const item of plannedItems) {
+    if(item.type==='repeaters')continue;
     trackUnmapped(item,'planned');
     for(const relation of ['primary','secondary'])for(const id of item.profile[relation]) {
       const muscle=muscleById.get(id);if(!muscle)continue;
@@ -289,14 +310,16 @@ export function buildWeekSummary({date=localDate(),today=localDate(),records=[],
   }
   for(const item of actualItems) {
     trackUnmapped(item,'actual');
-    // Empty/failed/warm-up-only hangboard work is logged, but is not working exposure.
-    if(typeInfo.get(item.type)?.group==='hangboard'&&!item.hangSets)continue;
+    // Repeaters stay in the log and plan totals; analytics cover scored max hangs only.
+    if(typeInfo.get(item.type)?.group==='hangboard'&&!item.maxHangSeconds)continue;
     for(const relation of ['primary','secondary'])for(const id of item.profile[relation]) {
       const muscle=muscleById.get(id);if(!muscle)continue;
       muscle[relation==='primary'?'actualPrimary':'actualSecondary']++;
       muscle[relation==='primary'?'workingSets':'secondarySets']+=item.workingSets;
       muscle[relation==='primary'?'climbingSessions':'secondaryClimbingSessions']+=item.climbingSessions;
+      muscle[relation==='primary'?'climbingAttempts':'secondaryClimbingAttempts']+=item.attempts;
       muscle[relation==='primary'?'hangSets':'secondaryHangSets']+=item.hangSets;
+      muscle[relation==='primary'?'maxHangSeconds':'secondaryMaxHangSeconds']+=item.maxHangSeconds||0;
     }
   }
   summary.muscles=muscles;

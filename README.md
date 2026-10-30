@@ -14,16 +14,29 @@ Loading and saving workouts requires an internet connection. An offline launch s
 
 ## My week
 
-The **My week** tab opens a Monday–Sunday dashboard; `/?view=week` links directly to it. Select any week and any comparison week, or use the surrounding-weeks table to inspect past work and future plans. All type filters apply to the summary cards, daily detail, comparisons and muscle coverage. Training-day boundaries follow the existing America/Toronto convention and calendar arithmetic handles daylight-saving and year changes.
+The **My week** tab opens a Monday–Sunday dashboard; `/?view=week` links directly to it. Select any week and comparison week, or use the surrounding-weeks table to inspect past work and future plans. Training-day boundaries follow the existing America/Toronto convention and calendar arithmetic handles daylight-saving and year changes.
 
-- **Planned exercises** count calendar targets. **Completed targets** count only targets explicitly reviewed as **Hit target**. Partial, missed, skipped and unreviewed results remain distinct; logging a set never changes a target review.
-- **Logged activities** count distinct working strength exercises within sessions and nonempty climbing or hangboard workouts. Strength sets, climbing attempts/sends and hangboard sets/active seconds retain separate units. Warm-ups, failed strength sets, empty workouts and duplicate/imported copies do not inflate working-volume totals.
-- Each calendar target can optionally specify a **training type** and **planned strength working sets**. Existing targets continue to work; Auto classifies the activity name, while structured set counts are never inferred from free text. A 4×4 climbing workout is recognized by its title; an explicit plan type takes precedence over inference.
-- Muscle coverage separates primary and supporting contributions across 14 broad groups, with planned/logged and measure controls, a body map, same-unit week comparisons, and a list of contributing exercises. Missing planned set counts remain unknown. Unidentified exercises and ambiguous pulldowns remain unmapped. A displayed gap means no mapped primary exposure under the selected measure and filters; it does not measure activation, recovery, or training adequacy.
-- Failed data requests are visible and retryable; unavailable data is distinguished from an empty week. Read-only summaries use the existing APIs and do not rewrite historical workouts.
+- **Planned exercises** count calendar targets. **Completed targets** count only targets explicitly reviewed as **Hit target**. Logging a set never changes a target review.
+- **Logged activities** count working strength exercise/session blocks and nonempty climbing or hangboard workouts. All type filters apply to plans, recorded activities, comparisons and muscle coverage.
+- Weekly performance separates **bouldering** and **Kilter**: distinct climbs attempted, attempt tally, distinct sent climbs and best completed grade evidence. Kilter uses climb-plus-angle variants; repeated visits to the same variant remain one distinct climb within the period. Lead and top rope remain separate.
+- **Max hang score** replaces hangboard set counts in performance comparisons: the best individual completed max hang's supported load in pounds multiplied by actual hold seconds, in **lb·s**. Workout-recorded bodyweight plus added load minus assistance supplies supported load; no current-profile weight is inferred for historical workouts. The full scoring and exclusion rules are below.
+- Each calendar target can optionally specify a training type and planned strength working sets. Existing targets continue to work. Structured set counts are never inferred from free text; missing counts remain unquantified.
+- Muscle coverage separates primary/supporting contributions across 14 broad groups. Measures are strength working sets, climbing attempts, scored max-hang active seconds, or exercise exposures. Repeaters are excluded from muscle analytics, but remain in planned/logged totals and editors. These units are never treated as equivalent training doses. A gap means no mapped primary exposure under the selected filters and measure, not a diagnosis of inadequate training.
+- Unknown exercises remain unmapped; unknown scores remain unavailable rather than zero. Failed data requests are visible and retryable. Summaries use existing saved records without rewriting history.
 
-Implementation: `public/week-model.js`, `public/week.js`, and `public/week.css`. Focused verification: `node test-week-model.mjs`, `node test-week-plans.mjs`, and `npm test`.
+Implementation: `public/week-model.js`, `public/week.js`, and `public/week.css`. Focused verification: `node test-week-model.mjs` and `node test-week-plans.mjs`.
 
+## Climbing and max-hang analytics
+
+Climbing and Kilter each have analytics inside their own tab. Category, location, exact-date and workout-search filters apply; additional range, grade-scale, timeline grouping and Kilter-angle controls refine the charts. Charts show climb volume over time, completed climbs by recorded grade, exact-grade progression, explicit attempt outcomes, and climbing tags or Kilter angles. Exact-value tables accompany charts where useful.
+
+Attempt numbers are session ordinals. Each workout contributes the highest ordinal for a climb/angle, never the sum of `1 + 2 + 3`. Explicit sends, explicit unfinished attempts and earlier attempts with unrecorded outcomes remain separate. Duplicate snapshots, deleted revisions and duplicate ordinal rows cannot inflate counts. Native grade scales are never converted into one another. A failed high-grade attempt is not a maximum achieved grade; a recorded grade range is never treated as its upper grade. Gym colours and unsupported grade notation remain unranked.
+
+The Hangboard tab's max-hang analytics include the best score, raw load/time, recorded setup, per-workout/setup trend, exact values and missing-data reasons. A score requires `max_hangs`, a non-warm-up set, an explicitly completed result, one actual hold with positive duration, and a known positive supported load. Repeaters, failed/partial/unknown results, missing bodyweight or load, and deleted records are excluded. Absolute no-hang loads have a separate view and never compete with bodyweight hangs. Scores use the **best single hold**, not accumulated volume.
+
+The load–time score is a transparent descriptive index, not a validated strength estimate or predicted maximum. Grip, edge depth, hand, board/location and setup stay attached to each score. Weekly deltas only describe matching, fully recorded setups; missing setup details do not prove comparability. The scorer never modifies input workouts or fills missing historical values from profile defaults.
+
+Shared calculation modules: `public/climbing-analytics-model.js` and `public/hangboard-analytics-model.js`. Focused checks: `node test-climbing-analytics.mjs` and `node test-max-hang-analytics.mjs`.
 
 ## What it does
 

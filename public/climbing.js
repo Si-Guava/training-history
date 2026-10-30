@@ -1,5 +1,6 @@
 import { GRADE_SYSTEMS, categoryInfo, normalizeClimbingWorkout, buildClimbCatalog, formatClimbGrade, climbNameKey, searchClimbCatalog, buildClimbAttemptTotals, climbAttemptTotalsFor } from './climbing-model.js';
 import { getTrainingToday } from './exercise-archive.js';
+import { createClimbingAnalytics } from './climbing-analytics.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -21,7 +22,7 @@ export function createClimbingTracker({host,kind='climbing',announce=()=>{},onSa
   try{preferences={...preferences,...JSON.parse(localStorage.getItem(storageKey)||'{}')};}catch{}
   if(!categoryInfo(preferences.category)||(board?preferences.category!=='kilter':preferences.category==='kilter'))preferences.category=board?'kilter':'indoor_boulder';
   let category=preferences.category,venueFilter=String(preferences.venue||''),dateFilter='',search='',showDeleted=false;
-  let workouts=[],deletedWorkouts=[],loaded=false,loading=false,loadPromise=null,writeRevision=0,actionPending=false,lastDeleted=null;
+  let workouts=[],deletedWorkouts=[],loaded=false,loading=false,loadFailed=false,loadPromise=null,writeRevision=0,actionPending=false,lastDeleted=null;
   let totalsSource=null,attemptTotals=new Map();
   let draft=null,dirty=false,saving=false,initialFocus=null,pickerItems=[],pickerQuery='';
   let nameSuggestions=null,ignoreNameFocus=null;
@@ -36,8 +37,9 @@ export function createClimbingTracker({host,kind='climbing',announce=()=>{},onSa
     ${board?'':`<section class="climb-category-panel" aria-label="Climbing category"><div class="climb-category-choice"><span class="climb-control-label">Where</span><div class="climb-segmented" role="group" aria-label="Climbing environment"><button type="button" data-climb-environment="indoor">Indoor</button><button type="button" data-climb-environment="outdoor">Outdoor</button></div></div><div class="climb-category-choice"><span class="climb-control-label">Style</span><div class="climb-segmented" role="group" aria-label="Climbing discipline"><button type="button" data-climb-discipline="boulder">Boulder</button><button type="button" data-climb-discipline="lead">Lead</button><button type="button" data-climb-discipline="toprope">Top rope</button></div></div><div class="climb-category-caption"><strong data-climb-category-label></strong><span>A separate history and climb library</span></div></section>`}
     <div class="climb-status" role="status"><span data-climb-status>Load your saved workouts to begin.</span><button type="button" class="text-button" data-climb-retry hidden>Retry</button></div>
     <div class="climb-notice" role="status" hidden><span data-climb-notice></span><button type="button" class="text-button" data-climb-undo hidden>Undo delete</button><button type="button" class="climb-icon-button" data-climb-dismiss aria-label="Dismiss climbing message">×</button></div>
-    <div class="climb-history-toolbar"><div><span class="eyebrow">SESSION HISTORY</span><h3 data-climb-history-heading></h3><p data-climb-history-count></p></div><button type="button" class="text-button" data-climb-toggle-deleted aria-pressed="false">Deleted workouts</button></div>
     <div class="climb-filters"><label><span data-climb-venue-label>Gym / crag</span><select data-climb-filter-venue aria-label="Filter climbing location"><option value="">All locations</option></select></label><label>Date<input type="date" data-climb-filter-date aria-label="Filter climbing workout date"></label><label class="climb-search-label">Find a workout or climb<input type="search" data-climb-search placeholder="Name, grade, tag or notes…"></label><button type="button" class="text-button" data-climb-clear-filters>Clear filters</button></div>
+    <div data-climb-analytics></div>
+    <div class="climb-history-toolbar"><div><span class="eyebrow">SESSION HISTORY</span><h3 data-climb-history-heading></h3><p data-climb-history-count></p></div><button type="button" class="text-button" data-climb-toggle-deleted aria-pressed="false">Deleted workouts</button></div>
     <div class="climb-workout-list" data-climb-workouts></div>
     <dialog class="climb-dialog" aria-labelledby="${prefix}-editor-title"><form class="climb-editor-form" data-climb-form>
       <header class="climb-dialog-heading"><div><span class="eyebrow" data-climb-editor-category></span><h2 id="${prefix}-editor-title">New workout</h2><p>Record a session now and add or edit attempts whenever you need.</p></div><button type="button" class="climb-icon-button" data-climb-close aria-label="Close climbing workout">×</button></header>
@@ -50,6 +52,7 @@ export function createClimbingTracker({host,kind='climbing',announce=()=>{},onSa
       <footer class="climb-dialog-footer"><span data-climb-save-hint>Workouts are saved with your site.</span><div><button type="button" class="button button-outline" data-climb-cancel>Cancel</button><button type="submit" class="button climb-primary" data-climb-save>Save workout</button></div></footer>
     </form></dialog>`;
   const dialog=q('.climb-dialog'),form=q('[data-climb-form]');
+  const analytics=createClimbingAnalytics({host:q('[data-climb-analytics]'),kind});
 
   function allAttemptTotals(){
     // Cache by the complete active-workout snapshot, never by visible filters or picker scope.
@@ -75,6 +78,8 @@ export function createClimbingTracker({host,kind='climbing',announce=()=>{},onSa
     q('[data-climb-toggle-deleted]').textContent=showDeleted?'Back to workouts':`Deleted workouts${categoryRows(deletedWorkouts).length?' ('+categoryRows(deletedWorkouts).length+')':''}`;
     q('[data-climb-toggle-deleted]').setAttribute('aria-pressed',String(showDeleted));
     q('[data-climb-new]').disabled=!loaded||loading||actionPending;
+    q('[data-climb-analytics]').hidden=showDeleted;
+    if(!showDeleted)analytics.update({workouts:filterRows(workouts),category,loaded,loading,failed:loadFailed,dateFilter,venueFilter,search});
     q('[data-climb-workouts]').innerHTML=rows.length?rows.map(renderWorkout).join(''):`<div class="climb-empty"><span class="climb-empty-mark" aria-hidden="true">${board?'◇':'↗'}</span><h3>${!loaded?'Your climbing history':showDeleted?'No deleted workouts':all.length?'No matching workouts':'Your first '+info.label.toLowerCase()+' session'}</h3><p>${!loaded?'Load your saved workouts to start logging.':showDeleted?'Deleted workouts can be restored here.':all.length?'Try another date, location or search.':'Create a dated workout, then add your climbs and attempts. This category has its own saved history.'}</p>${loaded&&!showDeleted&&!all.length?'<button type="button" class="button climb-primary" data-climb-new>＋ Create workout</button>':''}</div>`;
   }
   function renderAttempt(a,index,workoutCategory){
@@ -92,8 +97,8 @@ export function createClimbingTracker({host,kind='climbing',announce=()=>{},onSa
     try{const response=await fetch('/api/climbing-workouts'+query,{method,cache:'no-store',headers:{Accept:'application/json',...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),signal:controller.signal});let body;try{body=await response.json();}catch{throw new Error('The saved-workout response could not be read. Keep your changes open and retry.');}if(!response.ok){const error=new Error(body.error||'This change could not be confirmed. Please retry.');error.conflict=response.status===409||body.conflict;error.field=body.field;throw error;}return body;}catch(error){if(error.name==='AbortError')throw new Error('The request timed out. Keep your draft open and retry; the same workout will not be added twice.');if(error instanceof TypeError)throw new Error('Couldn’t connect to saved workouts. Keep your draft open and retry.');throw error;}finally{clearTimeout(timer);}
   }
   async function load(){
-    if(loading)return loadPromise;loading=true;const started=writeRevision;setStatus('Loading saved climbing workouts…');
-    loadPromise=(async()=>{try{const body=await request('GET');if(!Array.isArray(body.workouts)||!Array.isArray(body.deletedWorkouts))throw new Error('Your saved climbing workouts could not be read.');if(started!==writeRevision)return;workouts=body.workouts;deletedWorkouts=body.deletedWorkouts;loaded=true;setStatus('Saved workouts are up to date.');render();}catch(error){setStatus(error.message,true);render();}finally{loading=false;q('[data-climb-new]').disabled=!loaded||actionPending;if(started!==writeRevision)load();}})();return loadPromise;
+    if(loading)return loadPromise;loading=true;const started=writeRevision;setStatus('Loading saved climbing workouts…');render();
+    loadPromise=(async()=>{try{const body=await request('GET');if(!Array.isArray(body.workouts)||!Array.isArray(body.deletedWorkouts))throw new Error('Your saved climbing workouts could not be read.');if(started!==writeRevision)return;workouts=body.workouts;deletedWorkouts=body.deletedWorkouts;loaded=true;loadFailed=false;setStatus('Saved workouts are up to date.');}catch(error){loadFailed=true;setStatus(error.message,true);}finally{loading=false;render();q('[data-climb-new]').disabled=!loaded||actionPending;if(started!==writeRevision)load();}})();return loadPromise;
   }
   function putWorkout(workout){workouts=workouts.filter(w=>w.id!==workout.id);deletedWorkouts=deletedWorkouts.filter(w=>w.id!==workout.id);(workout.deleted_at?deletedWorkouts:workouts).push(workout);}
   function switchCategory(next){if(!categoryInfo(next)||(board?next!=='kilter':next==='kilter'))return;category=next;venueFilter='';showDeleted=false;savePreferences();render();announce(categoryInfo(category).label+' selected.');}
@@ -333,5 +338,5 @@ export function createClimbingTracker({host,kind='climbing',announce=()=>{},onSa
   form.addEventListener('submit',save,events);dialog.addEventListener('cancel',event=>{event.preventDefault();closeEditor();},events);
   window.addEventListener('beforeunload',event=>{if(dialog.open&&dirty){event.preventDefault();event.returnValue='';}},events);
   render();
-  return {load,activate(){render();return load();},openNew,destroy(){abort.abort();dialog.close();host.innerHTML='';host.classList.remove('climbing-tracker');}};
+  return {load,activate(){render();return load();},openNew,destroy(){abort.abort();analytics.destroy();dialog.close();host.innerHTML='';host.classList.remove('climbing-tracker');}};
 }

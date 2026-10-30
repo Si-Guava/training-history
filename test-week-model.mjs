@@ -114,7 +114,8 @@ test('native hangboard keeps working sets and active seconds separate from stren
   const result=summary({hangboardWorkouts:[workout,{...workout},hang([])]});
   assert.equal(result.loggedExercises,1);assert.equal(result.hangSets,2);assert.equal(result.hangSeconds,48);
   assert.equal(result.workingSets,0);assert.equal(muscle(result,'forearms').workingSets,0);
-  assert.equal(muscle(result,'forearms').hangSets,2);
+  assert.equal(muscle(result,'forearms').hangSets,0); // Repeaters remain logged but are not analysed.
+  assert.equal(result.performance.maxHangs.score,null);
   const warmupOnly=summary({hangboardWorkouts:[hang([hangSet({isWarmup:true})])]});
   assert.equal(warmupOnly.loggedExercises,1);assert.equal(warmupOnly.hangSets,0);
   assert.equal(muscle(warmupOnly,'forearms').actualPrimary,0);
@@ -169,7 +170,7 @@ test('muscle exposure keeps primary, secondary, strength sets and climbing sessi
   assert.equal(muscle(result,'lats').workingSets,2);assert.equal(muscle(result,'lats').climbingSessions,1);
   assert.equal(muscle(result,'lats').actualPrimary,2);assert.equal(muscle(result,'lats').plannedPrimary,1);
   assert.equal(muscle(result,'biceps').secondarySets,2);assert.equal(muscle(result,'biceps').workingSets,0);
-  assert.equal(muscle(result,'forearms').hangSets,1);assert.equal(muscle(result,'forearms').climbingSessions,1);
+  assert.equal(muscle(result,'forearms').hangSets,0);assert.equal(muscle(result,'forearms').climbingAttempts,1);
   assert.equal(muscle(result,'quadriceps').actualPrimary,0);assert.equal(muscle(result,'quadriceps').actualSecondary,1);
 });
 
@@ -210,4 +211,69 @@ test('summary construction does not mutate source records, plans, workouts or fi
   const before=structuredClone(input);
   buildWeekSummary(input);
   assert.deepEqual(input,before);
+});
+
+
+test('weekly climbing performance separates bouldering, Kilter angles and completed grades',()=>{
+  const same=id();
+  const boulder=climb([
+    attempt({climbId:same,attemptNumber:1,completed:false,gradeSystem:'v',gradeMin:'V4'}),
+    attempt({climbId:same,attemptNumber:3,completed:true,gradeSystem:'v',gradeMin:'V4'}),
+    attempt({attemptNumber:2,completed:false,gradeSystem:'v',gradeMin:'V8'}),
+  ]);
+  const kilter=climb([attempt({climbId:same,angle:30,gradeSystem:'v',gradeMin:'V5',completed:true}),attempt({climbId:same,angle:40,gradeSystem:'v',gradeMin:'V6',completed:false})],{category:'kilter',title:'4x4 board'});
+  const result=summary({climbingWorkouts:[boulder,kilter]});
+  assert.equal(result.performance.boulder.totals.distinctClimbs,2);
+  assert.equal(result.performance.boulder.totals.attempts,5);
+  assert.equal(result.performance.boulder.maxGrades[0].label,'V4');
+  assert.equal(result.performance.kilter.totals.distinctClimbs,2);
+  assert.equal(result.performance.kilter.maxGrades[0].label,'V5');
+  assert.equal(result.byType.kilter.loggedExercises,1);
+  assert.equal(result.byType.climbing_4x4.loggedExercises,0);
+  const boardOnly=summary({climbingWorkouts:[boulder,kilter],types:['kilter']});
+  assert.equal(boardOnly.performance.boulder.totals.distinctClimbs,0);
+  assert.equal(boardOnly.performance.kilter.totals.distinctClimbs,2);
+  assert.equal(muscle(boardOnly,'forearms').climbingAttempts,2);
+});
+
+test('weekly sends and attempts agree with shared analytics for duplicate session ordinals',()=>{
+  const climbId=id();
+  const workout=climb([attempt({climbId,completed:true,attemptNumber:3}),attempt({climbId,completed:true,attemptNumber:3})]);
+  const result=summary({climbingWorkouts:[workout]});
+  assert.equal(result.sends,1);assert.equal(result.attempts,3);
+  assert.equal(result.days[0].sends,1);assert.equal(result.performance.boulder.totals.sends,1);
+});
+
+test('weekly max hang score uses best completed load-time hold, with repeaters excluded',()=>{
+  const set=hangSet({status:'completed',loadMode:'added',loadLb:25,grip:'Half crimp',edgeMm:20,hand:'both',setup:'',segments:[{id:id(),seconds:10,count:1}]});
+  const workout=hang([set],{protocol:'max_hangs',bodyweightLb:150,location:'Test board'});
+  const repeater=hang([hangSet({status:'completed',loadMode:'added',loadLb:1000})],{bodyweightLb:150});
+  const result=summary({hangboardWorkouts:[workout,repeater],plans:[plan([target({exercise:'Repeaters'}),target({exercise:'Max hangs'})])]});
+  assert.equal(result.performance.maxHangs.score,1750);
+  assert.equal(result.performance.maxHangs.best.loadLb,175);
+  assert.equal(result.performance.maxHangs.best.seconds,10);
+  assert.equal(muscle(result,'forearms').maxHangSeconds,10);
+  assert.equal(muscle(result,'forearms').actualPrimary,1);
+  assert.equal(muscle(result,'forearms').plannedPrimary,1);
+  assert.equal(result.planned,2);assert.equal(result.loggedExercises,2);
+  const repeaterOnly=summary({hangboardWorkouts:[workout,repeater],types:['repeaters']});
+  assert.equal(repeaterOnly.loggedExercises,1);assert.equal(repeaterOnly.performance.maxHangs.score,null);
+  assert.equal(muscle(repeaterOnly,'forearms').actualPrimary,0);
+  const missingWeight=summary({hangboardWorkouts:[{...workout,bodyweightLb:null}]});
+  assert.equal(missingWeight.performance.maxHangs.score,null);
+  assert.equal(missingWeight.performance.maxHangs.excluded.missing_bodyweight,1);
+  const wrongSetup=summary({hangboardWorkouts:[workout],maxHangCondition:'different'});
+  assert.equal(wrongSetup.performance.maxHangs.score,null);
+  assert.equal(muscle(wrongSetup,'forearms').maxHangSeconds,0);
+});
+
+test('weekly performance honours Sunday, adjacent weeks and newer equal-revision tombstones',()=>{
+  const workout=climb([attempt({completed:true,gradeSystem:'v',gradeMin:'V6'})],{date:'2026-11-01',revision:2,updated_at:'2026-10-30T12:00:00Z'});
+  assert.equal(summary({climbingWorkouts:[workout]}).performance.boulder.totals.sends,1);
+  assert.equal(summary({climbingWorkouts:[{...workout,date:'2026-11-02'}]}).performance.boulder.totals.sends,0);
+  const removed={...workout,deleted_at:'2026-10-30T13:00:00Z',updated_at:'2026-10-30T13:00:00Z'};
+  for(const snapshots of [[removed,workout],[workout,removed]]) {
+    const result=summary({climbingWorkouts:snapshots});
+    assert.equal(result.performance.boulder.totals.sends,0);assert.equal(result.loggedExercises,0);
+  }
 });

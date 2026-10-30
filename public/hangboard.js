@@ -1,5 +1,6 @@
 import { HANGBOARD_PROTOCOLS, normalizeHangboardWorkout, summarizeHangboardWorkout, formatHangboardPattern, upgradeHangboardWorkout, splitHangboardCycle, mergeHangboardCycle } from './hangboard-model.js';
 import { getTrainingToday } from './exercise-archive.js';
+import { summarizeMaxHangs } from './hangboard-analytics-model.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -27,7 +28,8 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
   let filter='all';try{filter=localStorage.getItem('training-hangboard-protocol')||'all';}catch{}
   if(filter!=='all'&&!protocolInfo(filter))filter='all';
   let dateFilter='',search='',showDeleted=false,workouts=[],deletedWorkouts=[];
-  let loaded=false,loading=false,loadPromise=null,writeRevision=0,actionPending=false,lastDeleted=null;
+  let loaded=false,loading=false,loadPromise=null,writeRevision=0,actionPending=false,lastDeleted=null,loadFailed=false;
+  let scoreMeasurement='hang',scoreCondition='',scoreConditionLabel='';
   let draft=null,dirty=false,saving=false,initialFocus=null;
   const bulkRestDrafts=new Map();
   const abort=new AbortController(),events={signal:abort.signal},q=selector=>host.querySelector(selector);
@@ -40,13 +42,14 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
     <div class="hang-notice" role="status" hidden><span data-hang-notice></span><button type="button" class="text-button" data-hang-undo hidden>Undo delete</button><button type="button" class="hang-icon-button" data-hang-dismiss aria-label="Dismiss hangboard message">×</button></div>
     <div class="hang-history-heading"><div><span class="eyebrow">WORKOUT HISTORY</span><h3 data-hang-history-title>All workouts</h3><p data-hang-history-count></p></div><button type="button" class="text-button" data-hang-toggle-deleted aria-pressed="false">Deleted workouts</button></div>
     <div class="hang-filters"><label>Date<input type="date" data-hang-filter-date aria-label="Filter hangboard date"></label><label>Find a workout or grip<input type="search" data-hang-search placeholder="Grip, hold, location or notes…"></label><button type="button" class="text-button" data-hang-clear>Clear filters</button></div>
+    <section class="hang-analytics" data-hang-analytics aria-labelledby="hang-analytics-title"></section>
     <div class="hang-workout-list" data-hang-workouts></div>
     <dialog class="hang-dialog" aria-labelledby="hangboard-editor-title"><form class="hang-editor-form" data-hang-form>
       <header class="hang-dialog-heading"><div><span class="eyebrow">HANGBOARD WORKOUT</span><h2 id="hangboard-editor-title">New workout</h2><p data-hang-editor-subtitle>Choose a protocol, then record each grip and set.</p></div><button type="button" class="hang-icon-button" data-hang-close aria-label="Close hangboard workout">×</button></header>
       <div class="hang-form-scroll"><fieldset class="hang-form-content">
         <div class="hang-basics"><label>Date<input type="date" data-hang-work-field="date" required></label><label>Protocol<select data-hang-work-field="protocol">${HANGBOARD_PROTOCOLS.map(p=>`<option value="${p.id}">${esc(p.label)}</option>`).join('')}</select></label><label>Workout name ${optional}<input data-hang-work-field="title" maxlength="120" placeholder="e.g. Evening finger session"></label><label>Board / location ${optional}<input data-hang-work-field="location" maxlength="160" list="hangboard-location-options" placeholder="e.g. Home board"></label></div>
         <p class="hang-protocol-lock" data-hang-protocol-lock></p><datalist id="hangboard-location-options"></datalist><datalist id="hangboard-grip-options"></datalist>
-        <details class="hang-session-details"><summary>Bodyweight & workout notes <span>optional</span></summary><div><label>Bodyweight for this workout <span class="hang-unit">lb</span><input type="number" data-hang-work-field="bodyweightLb" min="0.001" max="1000" step="any" placeholder="Leave blank if unknown"><small>Stored with this workout; no bodyweight is assumed.</small></label><label>Workout notes<textarea data-hang-work-field="notes" maxlength="4000" rows="3" placeholder="Session focus, how it felt, anything to remember…"></textarea></label></div></details>
+        <details class="hang-session-details"><summary>Bodyweight & workout notes <span>optional</span></summary><div><label>Bodyweight for this workout <span class="hang-unit">lb</span><input type="number" data-hang-work-field="bodyweightLb" min="0.001" max="1000" step="any" placeholder="Leave blank if unknown"><small data-hang-bodyweight-help>Stored with this workout; no bodyweight is assumed.</small></label><label>Workout notes<textarea data-hang-work-field="notes" maxlength="4000" rows="3" placeholder="Session focus, how it felt, anything to remember…"></textarea></label></div></details>
         <section class="hang-set-section" aria-label="Hangboard sets"><div class="hang-set-heading"><div><h3 data-hang-set-title>Repeater sets</h3><p data-hang-set-help></p></div><span data-hang-set-count>0 sets</span></div><div data-hang-sets></div><div class="hang-add-actions"><button type="button" class="button button-outline hang-add-set" data-hang-add-set data-hang-global-add>＋ Add set</button><button type="button" class="button button-outline hang-add-set" data-hang-add-cycle>＋ Add cycle</button></div></section>
       </fieldset></div>
       <div class="hang-form-error" role="alert" hidden><span data-hang-form-error></span><button type="button" class="text-button" data-hang-reload-draft hidden>Reload latest workout</button></div>
@@ -64,8 +67,50 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
     q('[data-hang-history-count]').textContent=loaded?`${rows.length} of ${total} ${total===1?'workout':'workouts'}${showDeleted?' · recoverable':' saved'}`:'Your saved history will appear here.';
     q('[data-hang-toggle-deleted]').textContent=showDeleted?'Back to workouts':`Deleted workouts${deletedWorkouts.length?' ('+deletedWorkouts.length+')':''}`;q('[data-hang-toggle-deleted]').setAttribute('aria-pressed',String(showDeleted));
     q('[data-hang-filter-date]').value=dateFilter;q('[data-hang-search]').value=search;
+    renderAnalytics(rows);
     q('[data-hang-workouts]').innerHTML=rows.length?rows.map(renderWorkout).join(''):`<div class="hang-empty"><span class="hang-empty-symbol" aria-hidden="true">▥</span><h3>${!loaded?'Your hangboard history':showDeleted?'No deleted workouts':source.length?'No matching workouts':'Your first '+(protocolInfo(filter)?.label.toLowerCase()||'hangboard')+' workout'}</h3><p>${!loaded?'Load your saved history to start logging.':showDeleted?'Deleted hangboard workouts can be restored here.':source.length?'Try another protocol, date or search.':'Create a dated workout, choose Repeaters or Max hangs, then add your sets. You can also save an empty workout and fill it in later.'}</p>${loaded&&!showDeleted&&!source.length?'<button type="button" class="button hang-primary" data-hang-new>＋ Create workout</button>':''}</div>`;
     host.querySelectorAll('[data-hang-new]').forEach(b=>b.disabled=!loaded||loading||actionPending);
+  }
+  function renderAnalytics(rows){
+    const panel=q('[data-hang-analytics]');panel.hidden=showDeleted||filter==='repeaters';
+    if(panel.hidden)return;
+    const available=summarizeMaxHangs(rows,{measurement:scoreMeasurement});
+    const selectedCondition=available.conditions.find(condition=>condition.key===scoreCondition);
+    if(selectedCondition)scoreConditionLabel=selectedCondition.label;
+    const noMatchingSetup=!!scoreCondition&&!selectedCondition;
+    const conditionOptions=noMatchingSetup?[{key:scoreCondition,label:(scoreConditionLabel||'Selected setup')+' — no matching holds'},...available.conditions]:available.conditions;
+    const summary=scoreCondition?summarizeMaxHangs(rows,{measurement:scoreMeasurement,conditionKey:scoreCondition}):available,best=summary.best;
+    const label=scoreMeasurement==='no_hang'?'No-hang score':'Max hang score';
+    const reasons=[
+      ['missing_bodyweight','missing workout bodyweight'],['not_completed','result not marked Completed'],
+      ['unknown_load','load not recorded'],['invalid_load','load cannot be scored'],
+      ['invalid_duration','single-hold duration missing or invalid'],['warmup','warm-up'],['unknown_warmup','warm-up status not recorded'],
+    ].filter(([key])=>summary.excluded[key]).map(([key,label])=>`${n(summary.excluded[key])} ${label}`);
+    const loadText=best?`${n(best.loadLb)} lb × ${n(best.seconds)} s`:'';
+    const detail=best?best.loadMode==='added'?`${n(best.bodyweightLb)} lb bodyweight + ${n(best.addedWeightLb)} lb added`:best.loadMode==='assisted'?`${n(best.bodyweightLb)} lb bodyweight − ${n(best.assistanceLb)} lb assistance`:best.loadMode==='absolute'?'Recorded no-hang load':`${n(best.bodyweightLb)} lb recorded bodyweight`:'';
+    panel.innerHTML=`<header class="hang-analytics-heading"><div><span class="eyebrow">MAX-HANG ANALYTICS</span><h3 id="hang-analytics-title">Load and time, together</h3><p>Follows the date and search filters above. Repeaters are excluded.</p></div><div class="hang-analytics-controls"><label>Measurement<select data-hang-score-measurement aria-label="Hangboard analytics measurement"><option value="hang" ${scoreMeasurement==='hang'?'selected':''}>Max hangs</option><option value="no_hang" ${scoreMeasurement==='no_hang'?'selected':''}>No-hang loads · separate</option></select></label><label>Compare a recorded setup<select data-hang-score-condition aria-label="Max hang analytics setup"><option value="">All recorded setups</option>${conditionOptions.map(condition=>`<option value="${esc(condition.key)}" ${condition.key===scoreCondition?'selected':''}>${esc(condition.label)}</option>`).join('')}</select></label></div></header>
+      ${loadFailed?`<p class="hang-score-warning">${loaded?'The latest refresh failed. These are the last successfully loaded records; use Retry above.':'Saved max hangs are unavailable. Use Retry above to load them.'}</p>`:''}
+      <div class="hang-score-summary"><div class="hang-score-card"><span>${label}</span><strong>${loaded&&best?n(best.score):'—'} <small>lb·s</small></strong><p>Best single completed working hold${best?' · '+esc(dateLabel(best.date)):''}</p></div><div class="hang-score-breakdown"><strong>${loaded&&best?esc(loadText):loaded?noMatchingSetup?'No holds for the selected setup':'No score available yet':'Loading saved max hangs…'}</strong><p>${loaded&&best?esc(detail):noMatchingSetup?'Your setup selection is retained. Change the date or search filters, or choose All recorded setups.':'Record actual hold time, known load and a Completed result. Bodyweight hangs also need bodyweight saved with that workout.'}</p>${best?`<p>${esc(best.conditionLabel)}</p>`:''}</div></div>
+      <p class="hang-score-method">Score = supported load in lb × actual hold seconds. This is a descriptive load–time score; it does not estimate maximal strength. Higher load and longer time both raise it. Compare the same grip, edge, hands and setup. Current profile weight is never substituted for missing workout bodyweight.</p>
+      ${summary.mixedConditions?'<p class="hang-score-warning">Multiple recorded setups are visible. Choose one setup for a consistent series; the overall best score alone does not establish improvement.</p>':''}
+      ${summary.conditionsIncomplete?'<p class="hang-score-warning">Some scored holds lack grip, edge, hands or board/location details. Matching missing details does not establish the same setup.</p>':''}
+      ${reasons.length?`<p class="hang-score-exclusions">Excluded from this score: ${esc(reasons.join(' · '))}.</p>`:''}
+      <div class="hang-score-trend"><h4>Best score by workout and setup</h4><p>Each point is one workout’s best scored hold for its recorded setup.${summary.mixedConditions?' Different setups remain separate points.':''}</p>${renderScoreTrend(summary)}</div>`;
+  }
+  function renderScoreTrend(summary){
+    const rows=summary.byWorkout;
+    if(!loaded||!rows.length)return '<div class="hang-score-empty">No scored holds in this view. Missing information stays unknown, rather than appearing as zero.</div>';
+    const width=760,height=220,left=72,right=22,top=24,bottom=42;
+    const first=Date.parse(rows[0].date+'T12:00:00Z'),last=Date.parse(rows.at(-1).date+'T12:00:00Z');
+    const maximum=Math.max(...rows.map(row=>row.score))*1.12;
+    const x=row=>first===last?(width+left-right)/2:left+(Date.parse(row.date+'T12:00:00Z')-first)/(last-first)*(width-left-right);
+    const y=row=>height-bottom-row.score/maximum*(height-top-bottom);
+    const number=value=>Number(value.toFixed(2));
+    const guides=[0,.25,.5,.75,1].map(fraction=>{const value=maximum*fraction,yy=number(height-bottom-fraction*(height-top-bottom));return `<line x1="${left}" x2="${width-right}" y1="${yy}" y2="${yy}" class="hang-score-grid"/><text x="${left-10}" y="${yy+4}" text-anchor="end">${n(Math.round(value))}</text>`;}).join('');
+    const line=!summary.mixedConditions&&!summary.conditionsIncomplete&&rows.length>1?`<polyline points="${rows.map(row=>`${number(x(row))},${number(y(row))}`).join(' ')}" class="hang-score-line"/>`:'';
+    const dots=rows.map(row=>`<circle cx="${number(x(row))}" cy="${number(y(row))}" r="5" class="hang-score-dot"><title>${esc(dateLabel(row.date)+' · '+n(row.score)+' lb·s · '+n(row.best.loadLb)+' lb × '+n(row.best.seconds)+' s · '+row.conditionLabel)}</title></circle>`).join('');
+    const dates=`<text x="${left}" y="${height-12}" text-anchor="start">${esc(dateLabel(rows[0].date))}</text>${first!==last?`<text x="${width-right}" y="${height-12}" text-anchor="end">${esc(dateLabel(rows.at(-1).date))}</text>`:''}`;
+    return `<div class="hang-score-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Best recorded max-hang score by workout; exact values and setups are available in the table below."><text x="${left}" y="14">lb·s</text>${guides}${line}${dots}${dates}</svg></div><details class="hang-score-table"><summary>View exact scores and setups (${rows.length})</summary><div><table><caption class="sr-only">Max-hang scores by workout and recorded setup</caption><thead><tr><th>Date</th><th>Score · lb·s</th><th>Supported load</th><th>Held time</th><th>Recorded setup</th></tr></thead><tbody>${[...rows].reverse().map(row=>`<tr><td>${esc(dateLabel(row.date))}</td><td>${n(row.score)}</td><td>${n(row.best.loadLb)} lb</td><td>${n(row.best.seconds)} s</td><td>${esc(row.conditionLabel)}</td></tr>`).join('')}</tbody></table></div></details>`;
   }
   function renderSet(s,index,protocol,{lastInCycle=false}={}){
     const active=s.segments.reduce((sum,part)=>sum+part.count*part.seconds,0),result=RESULTS.find(([v])=>v===s.status)?.[1]||'Not recorded';
@@ -84,8 +129,10 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
   function renderWorkout(original,index){
     const w=upgradeHangboardWorkout(original),summary=summarizeHangboardWorkout(w),label=protocolInfo(w.protocol)?.label||'Hangboard',title=w.title||label;
     const count=(w.protocol==='repeaters'?w.cycles.length+' '+(w.cycles.length===1?'cycle':'cycles')+' · ':'')+summary.setCount+' '+(summary.setCount===1?'set':'sets');
+    const maxScore=w.protocol==='max_hangs'?summarizeMaxHangs([w]).best:null;
+    const receipt=w.protocol==='max_hangs'?`<strong>${maxScore?n(maxScore.score)+' lb·s':'—'}</strong><span>Max hang score</span><span>${maxScore?n(maxScore.loadLb)+' lb × '+n(maxScore.seconds)+' s':'No eligible scored hold'}</span>`:`<strong>${count}</strong><span>${n(summary.hangCount)} recorded ${summary.hangCount===1?'hang':'hangs'}</span><span><b>${n(summary.activeSeconds)} s</b> recorded active time</span>`;
     if(showDeleted)return `<article class="hang-workout-card hang-deleted-card"><div><span class="hang-workout-date">${esc(dateLabel(w.date))}</span><h3>${esc(title)}</h3><p>${esc(label)} · ${count} · ${n(summary.activeSeconds)} s active</p></div><button type="button" class="button button-outline" data-hang-restore="${esc(w.id)}" ${actionPending?'disabled':''}>Restore workout</button></article>`;
-    return `<article class="hang-workout-card" data-hang-workout-id="${esc(w.id)}"><header class="hang-workout-heading"><div><span class="hang-workout-date">${esc(dateLabel(w.date))}</span><h3>${esc(title)}</h3><div class="hang-workout-meta"><span class="hang-protocol-badge">${esc(label)}</span>${w.location?`<span>${esc(w.location)}</span>`:''}${w.source?`<span class="hang-source-badge">Moved from ${esc(w.source.exercise||'strength history')}</span>`:''}</div></div><div class="hang-workout-receipt"><strong>${count}</strong><span>${n(summary.hangCount)} recorded ${summary.hangCount===1?'hang':'hangs'}</span><span><b>${n(summary.activeSeconds)} s</b> active hang time</span></div></header>${w.notes?`<p class="hang-workout-notes">${esc(w.notes)}</p>`:''}${finite(w.bodyweightLb)?`<p class="hang-workout-bodyweight">Recorded bodyweight: ${n(w.bodyweightLb)} lb</p>`:''}<details class="hang-workout-sets" ${index===0?'open':''}><summary>${w.protocol==='repeaters'?'Cycles, sets & hold details':summary.setCount?'Sets & hold details':'No sets added yet'}<span aria-hidden="true">＋</span></summary><div>${w.protocol==='repeaters'?renderCycles(w):w.sets.length?w.sets.map((s,i)=>renderSet(s,i,w.protocol)).join(''):'<p class="hang-help">Use “Edit / add sets” to begin logging this workout.</p>'}</div></details><footer class="hang-workout-actions"><button type="button" class="button button-outline" data-hang-edit="${esc(w.id)}" ${actionPending?'disabled':''}>Edit / add sets</button><button type="button" class="text-button hang-danger-link" data-hang-delete="${esc(w.id)}" ${actionPending?'disabled':''}>Delete workout</button></footer><div class="hang-delete-confirm" data-hang-delete-confirm="${esc(w.id)}" hidden><p>Delete this workout and its sets? It will remain recoverable in Deleted workouts.</p><button type="button" class="button hang-danger" data-hang-confirm-delete="${esc(w.id)}">Delete workout</button><button type="button" class="text-button" data-hang-keep="${esc(w.id)}">Keep workout</button></div></article>`;
+    return `<article class="hang-workout-card" data-hang-workout-id="${esc(w.id)}"><header class="hang-workout-heading"><div><span class="hang-workout-date">${esc(dateLabel(w.date))}</span><h3>${esc(title)}</h3><div class="hang-workout-meta"><span class="hang-protocol-badge">${esc(label)}</span>${w.location?`<span>${esc(w.location)}</span>`:''}${w.source?`<span class="hang-source-badge">Moved from ${esc(w.source.exercise||'strength history')}</span>`:''}</div></div><div class="hang-workout-receipt">${receipt}</div></header>${w.notes?`<p class="hang-workout-notes">${esc(w.notes)}</p>`:''}${finite(w.bodyweightLb)?`<p class="hang-workout-bodyweight">Recorded bodyweight: ${n(w.bodyweightLb)} lb</p>`:''}<details class="hang-workout-sets" ${index===0?'open':''}><summary>${w.protocol==='repeaters'?'Cycles, sets & hold details':summary.setCount?'Sets & hold details':'No sets added yet'}<span aria-hidden="true">＋</span></summary><div>${w.protocol==='repeaters'?renderCycles(w):w.sets.length?w.sets.map((s,i)=>renderSet(s,i,w.protocol)).join(''):'<p class="hang-help">Use “Edit / add sets” to begin logging this workout.</p>'}</div></details><footer class="hang-workout-actions"><button type="button" class="button button-outline" data-hang-edit="${esc(w.id)}" ${actionPending?'disabled':''}>Edit / add sets</button><button type="button" class="text-button hang-danger-link" data-hang-delete="${esc(w.id)}" ${actionPending?'disabled':''}>Delete workout</button></footer><div class="hang-delete-confirm" data-hang-delete-confirm="${esc(w.id)}" hidden><p>Delete this workout and its sets? It will remain recoverable in Deleted workouts.</p><button type="button" class="button hang-danger" data-hang-confirm-delete="${esc(w.id)}">Delete workout</button><button type="button" class="text-button" data-hang-keep="${esc(w.id)}">Keep workout</button></div></article>`;
   }
   async function request(method,payload,query=''){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
@@ -93,7 +140,7 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
   }
   async function load(){
     if(loading)return loadPromise;loading=true;const started=writeRevision;setStatus('Loading saved hangboard workouts…');
-    loadPromise=(async()=>{try{const body=await request('GET');if(!Array.isArray(body.workouts)||!Array.isArray(body.deletedWorkouts))throw new Error('Your saved hangboard history could not be read.');if(started!==writeRevision)return;workouts=body.workouts;deletedWorkouts=body.deletedWorkouts;loaded=true;setStatus('Saved workouts are up to date.');render();}catch(error){setStatus(error.message,true);render();}finally{loading=false;host.querySelectorAll('[data-hang-new]').forEach(b=>b.disabled=!loaded||actionPending);if(started!==writeRevision)load();}})();return loadPromise;
+    loadPromise=(async()=>{try{const body=await request('GET');if(!Array.isArray(body.workouts)||!Array.isArray(body.deletedWorkouts))throw new Error('Your saved hangboard history could not be read.');if(started!==writeRevision)return;workouts=body.workouts;deletedWorkouts=body.deletedWorkouts;loaded=true;loadFailed=false;setStatus('Saved workouts are up to date.');render();}catch(error){loadFailed=true;setStatus(error.message,true);render();}finally{loading=false;host.querySelectorAll('[data-hang-new]').forEach(b=>b.disabled=!loaded||actionPending);if(started!==writeRevision)load();}})();return loadPromise;
   }
   function putWorkout(workout){workouts=workouts.filter(w=>w.id!==workout.id);deletedWorkouts=deletedWorkouts.filter(w=>w.id!==workout.id);(workout.deleted_at?deletedWorkouts:workouts).push(workout);}
   function setFormError(message,conflict=false,field=''){
@@ -114,12 +161,13 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
     for(const key of ['date','title','location','notes','bodyweightLb','protocol'])q(`[data-hang-work-field="${key}"]`).value=draft[key]??'';
     const locations=[...new Set(workouts.map(w=>w.location).filter(Boolean))].sort((a,b)=>a.localeCompare(b));q('#hangboard-location-options').innerHTML=locations.map(v=>`<option value="${esc(v)}"></option>`).join('');
     const grips=[...new Set(['Open crimp','Half crimp','Three-finger drag','Full crimp','Sloper','Pinch',...workouts.flatMap(w=>w.sets.map(s=>s.grip)).filter(Boolean)])];q('#hangboard-grip-options').innerHTML=grips.map(v=>`<option value="${esc(v)}"></option>`).join('');
-    q('.hang-session-details').open=!!draft.notes||finite(draft.bodyweightLb);
+    q('.hang-session-details').open=draft.protocol==='max_hangs'||!!draft.notes||finite(draft.bodyweightLb);
     updateProtocol();
   }
   function protocolLocked(){return !!draft.revision||draft.sets.length>0||draft.protocol==='repeaters'&&(draft.cycles.length>1||draft.cycles.some(c=>finite(c.restAfterCycleSeconds)));}
   function updateProtocol(){
     const repeaters=draft.protocol==='repeaters',locked=protocolLocked();
+    q('[data-hang-bodyweight-help]').textContent=repeaters?'Stored with this workout; no bodyweight is assumed.':'For a max-hang score, record your bodyweight on this date and mark the hold Completed. No bodyweight is assumed.';
     q('[data-hang-work-field="protocol"]').disabled=locked;
     q('[data-hang-protocol-lock]').textContent=draft.revision?'This workout keeps its saved protocol. Create another workout to log a different protocol.':locked?'Remove sets, extra cycles and any recorded cycle recovery before changing this workout’s protocol.':repeaters?'A cycle groups sets together. Keep rest between hangs, between sets and between cycles separate.':'Each set is one hold. Record the actual hold duration, load and rest after the hold.';
     q('[data-hang-editor-subtitle]').textContent=repeaters?'Organize sets into cycles, with each kind of rest recorded separately.':'Record each hold, its load and recovery.';
@@ -325,9 +373,13 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
   },events);
   q('[data-hang-filter-date]').addEventListener('change',event=>{dateFilter=event.target.value;render();},events);
   q('[data-hang-search]').addEventListener('input',event=>{search=event.target.value;render();},events);
+  q('[data-hang-analytics]').addEventListener('change',event=>{
+    if(event.target.matches('[data-hang-score-measurement]')){scoreMeasurement=event.target.value;scoreCondition='';scoreConditionLabel='';render();}
+    else if(event.target.matches('[data-hang-score-condition]')){scoreCondition=event.target.value;if(!scoreCondition)scoreConditionLabel='';render();}
+  },events);
   q('[data-hang-work-field="protocol"]').addEventListener('change',event=>{
     if(!draft)return;readDraft();if(protocolLocked()){event.target.value=draft.protocol;updateProtocol();return;}
-    draft.protocol=event.target.value;draft.cycles=draft.protocol==='repeaters'?[newCycle()]:[];bulkRestDrafts.clear();dirty=true;renderSets();
+    draft.protocol=event.target.value;draft.cycles=draft.protocol==='repeaters'?[newCycle()]:[];q('.hang-session-details').open=draft.protocol==='max_hangs'||!!draft.notes||finite(draft.bodyweightLb);bulkRestDrafts.clear();dirty=true;renderSets();
   },events);
   form.addEventListener('input',event=>{
     if(!draft)return;

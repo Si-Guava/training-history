@@ -1,0 +1,127 @@
+/* Read-only charts share each tracker’s own climbing or Kilter colour context. */
+.climb-analytics { margin: 12px 0 36px; min-width: 0; --ca-attempted: #60715c; --ca-unknown: #b6a4cf; }
+.climb-analytics [hidden] { display: none !important; }
+.climb-analytics-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.climb-analytics-heading .eyebrow { font-size: 9px; letter-spacing: 1.6px; margin-bottom: 7px; }
+.climb-analytics-heading h3 { font-size: 26px; letter-spacing: -.6px; line-height: 1.2; }
+.climb-analytics-heading p { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.65; }
+.climb-analytics-badge { color: var(--climb-accent); border: 1px solid var(--climb-border); background: var(--climb-accent-wash); border-radius: 6px; font-size: 8px; letter-spacing: 1.3px; line-height: 1.5; padding: 7px 10px; margin-top: 4px; text-align: center; }
+.climb-analytics-controls { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-items: end; gap: 14px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: #172016; }
+[data-kind="kilter"] .climb-analytics-controls { grid-template-columns: repeat(4,minmax(0,1fr)); background: #211f18; }
+.climbing-tracker .climb-analytics-controls label { font-size: 10px; color: var(--muted); }
+.climbing-tracker .climb-analytics-controls :is(select,input) { min-height: 39px; font-size: 12px; margin-top: 7px; }
+.climb-analytics-controls select:disabled { opacity: .55; }
+.climb-analytics-custom { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+.climb-analytics-scope { margin: 10px 1px 20px; font-size: 10px; color: var(--muted); line-height: 1.7; }
+.climb-analytics-status { border: 1px solid var(--climb-border); color: var(--climb-accent); border-radius: 8px; padding: 13px 16px; font-size: 11px; margin-bottom: 17px; background: var(--climb-accent-wash); line-height: 1.6; }
+.climb-analytics-status.ca-status-error { color: #f0c3a3; border-color: #6b4c35; background: #2c231b; }
+.climb-analytics-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+.climb-analytics-metric { min-width: 0; padding: 21px 20px 19px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+.climb-analytics-metric > span { font-size: 11px; color: var(--muted); display: block; }
+.climb-analytics-metric > strong { display: block; margin-top: 11px; font-size: 37px; line-height: 1.14; letter-spacing: -1.4px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--climb-accent); overflow-wrap: anywhere; }
+.climb-analytics-metric > small { display: block; font-size: 9px; line-height: 1.6; color: var(--muted); margin-top: 11px; }
+.climb-analytics-metric.ca-metric-grade > strong { font-size: 22px; line-height: 1.4; letter-spacing: -.35px; }
+.climb-analytics-metric-note { font-size: 10px; color: var(--muted); line-height: 1.75; margin: 12px 1px 25px; }
+.climb-analytics-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 18px; }
+.climb-analytics-card { min-width: 0; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; overflow: hidden; }
+.climb-analytics-card.ca-card-wide { grid-column: 1 / -1; }
+.climb-analytics-card > summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; cursor: pointer; list-style: none; padding: 22px 23px 18px; }
+.climb-analytics-card > summary::-webkit-details-marker,.climb-analytics-method > summary::-webkit-details-marker { display: none; }
+.climb-analytics-card > summary span { min-width: 0; }
+.climb-analytics-card > summary small { display: block; font-size: 8px; letter-spacing: 1.7px; color: var(--climb-accent); margin-bottom: 8px; }
+.climb-analytics-card > summary strong { display: block; font-size: 18px; font-weight: 550; line-height: 1.4; letter-spacing: -.3px; }
+.climb-analytics-card > summary > i { display: block; width: 7px; height: 7px; flex: none; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); margin: -5px 2px 0; }
+.climb-analytics-card[open] > summary > i { transform: rotate(225deg); margin-top: 5px; }
+.climb-analytics-card-body { min-width: 0; padding: 0 23px 21px; }
+.climb-analytics-caption { color: var(--muted); line-height: 1.7; font-size: 11px; margin: -4px 0 19px; }
+.climb-analytics-legend { display: flex; gap: 12px 19px; flex-wrap: wrap; font-size: 10px; color: var(--muted); margin-bottom: 15px; }
+.climb-analytics-legend > span { display: flex; gap: 7px; align-items: center; }
+.climb-analytics :is(.climb-analytics-legend,.ca-outcome-list) i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.climb-analytics .ca-key-attempted { background: var(--ca-attempted); }
+.climb-analytics .ca-key-sent { background: var(--climb-accent); }
+.climb-analytics .ca-key-unknown { background: var(--ca-unknown); }
+.climb-analytics-chart-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--climb-border) transparent; }
+.climb-analytics-chart-scroll svg { width: 100%; height: auto; display: block; overflow: visible; }
+.climb-analytics-chart-scroll:focus-visible { outline: 2px solid var(--climb-accent); outline-offset: 3px; border-radius: 3px; }
+.climb-analytics svg g[tabindex]:focus { outline: none; }
+.climb-analytics svg g[tabindex]:focus :is(rect,circle) { stroke: var(--text); stroke-width: 2px; }
+.climb-analytics .ca-grid { stroke: #75877027; stroke-width: 1; }
+.climb-analytics .ca-axis { fill: var(--muted); font-size: 10px; font-family: inherit; }
+.climb-analytics .ca-bar-attempted { fill: var(--ca-attempted); }
+.climb-analytics .ca-bar-sent { fill: var(--climb-accent); }
+.climb-analytics .ca-grade-line { stroke: var(--climb-accent); stroke-width: 2; opacity: .6; }
+.climb-analytics .ca-grade-point { fill: var(--climb-accent); stroke: var(--panel); stroke-width: 2; }
+.climb-analytics-values { margin-top: 15px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.climb-analytics-values > summary { color: var(--climb-accent); font-size: 10px; cursor: pointer; padding: 5px 0; }
+.climb-analytics-table-scroll { overflow-x: auto; max-width: 100%; margin-top: 10px; scrollbar-width: thin; scrollbar-color: var(--climb-border) transparent; }
+.climb-analytics table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.climb-analytics th,.climb-analytics td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line-soft); line-height: 1.6; font-variant-numeric: tabular-nums; }
+.climb-analytics :is(th,td):first-child { text-align: left; padding-left: 0; }
+.climb-analytics :is(th,td):last-child { padding-right: 0; }
+.climb-analytics thead th { font-weight: 500; color: var(--muted); font-size: 9px; }
+.climb-analytics tbody th { font-weight: 500; min-width: 85px; }
+.climb-analytics-empty { padding: 30px 20px; border: 1px dashed var(--climb-border); border-radius: 8px; text-align: center; line-height: 1.75; color: var(--muted); font-size: 12px; }
+.climb-analytics-grid > .climb-analytics-empty { grid-column: 1 / -1; }
+.ca-grade-group + .ca-grade-group { margin-top: 26px; border-top: 1px solid var(--line-soft); padding-top: 18px; }
+.ca-grade-group h5 { font-size: 10px; color: var(--climb-accent); margin-bottom: 13px; font-weight: 550; }
+.climb-analytics-horizontal { display: flex; flex-direction: column; gap: 16px; max-height: 395px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--climb-border) transparent; padding-right: 5px; }
+.ca-horizontal-label { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 7px; }
+.ca-horizontal-label > span { font-size: 11px; overflow-wrap: anywhere; color: #d1dacb; }
+.ca-horizontal-label > strong { font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--climb-accent); font-variant-numeric: tabular-nums; }
+.ca-horizontal-label small { font-size: 9px; font-weight: 400; color: var(--muted); }
+.ca-horizontal-tracks { display: flex; flex-direction: column; gap: 4px; }
+.ca-horizontal-tracks > i { display: block; min-height: 5px; border-radius: 2px; }
+.ca-track-attempted { background: var(--ca-attempted); }
+.ca-track-sent { background: var(--climb-accent); }
+.climb-analytics-footnote { color: var(--muted); font-size: 10px; line-height: 1.75; margin: 16px 0 0; }
+.ca-outcome-number { font-size: 45px; line-height: 1.15; color: var(--climb-accent); font-weight: 550; letter-spacing: -1.2px; margin: 20px 0 24px; font-variant-numeric: tabular-nums; }
+.ca-outcome-number span { display: block; font-size: 10px; line-height: 1.7; color: var(--muted); font-weight: 400; letter-spacing: 0; margin-top: 5px; }
+.ca-outcome-strip { display: flex; width: 100%; height: 14px; border-radius: 4px; overflow: hidden; background: var(--bg); margin-bottom: 21px; }
+.ca-outcome-strip > i { display: block; min-height: 14px; }
+.ca-outcome-completed { background: var(--climb-accent); }
+.ca-outcome-unfinished { background: var(--ca-attempted); }
+.ca-outcome-unknown { background: repeating-linear-gradient(45deg,#b6a4cf 0,#b6a4cf 3px,#736883 3px,#736883 6px); }
+.ca-outcome-list { display: grid; gap: 10px; }
+.ca-outcome-list > div { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.ca-outcome-list dt { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
+.ca-outcome-list dd { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.climb-analytics-method { margin-top: 17px; border: 1px solid var(--line); border-radius: 9px; background: #151d15; }
+.climb-analytics-method > summary { cursor: pointer; font-size: 11px; color: var(--muted); padding: 15px 19px; list-style: none; }
+.climb-analytics-method > summary::before { content: '+'; display: inline-block; width: 19px; color: var(--climb-accent); }
+.climb-analytics-method[open] > summary::before { content: '−'; }
+.climb-analytics-method > div { padding: 0 19px 17px; }
+.climb-analytics-method p { font-size: 11px; line-height: 1.8; color: var(--muted); margin-top: 8px; }
+@media (max-width: 1120px) {
+  .climb-analytics-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .climb-analytics-metric > strong { font-size: 34px; }
+  .climb-analytics-metric.ca-metric-grade > strong { font-size: 24px; }
+  .climb-analytics-card > summary { padding-inline: 19px; }
+  .climb-analytics-card-body { padding-inline: 19px; }
+}
+@media (max-width: 800px) {
+  .climb-analytics-grid { grid-template-columns: 1fr; }
+  .climb-analytics-card.ca-card-wide { grid-column: auto; }
+  [data-kind="kilter"] .climb-analytics-controls { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 540px) {
+  .climb-analytics { margin-bottom: 27px; }
+  .climb-analytics-heading { gap: 12px; }
+  .climb-analytics-heading h3 { font-size: 24px; }
+  .climb-analytics-heading p { font-size: 11px; }
+  .climb-analytics-badge { max-width: 95px; font-size: 7px; letter-spacing: 1px; padding: 6px 8px; }
+  .climb-analytics-controls { padding: 15px; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px 10px; }
+  .climbing-tracker .climb-analytics-controls :is(select,input) { font-size: 16px; min-height: 43px; padding-inline: 9px; }
+  .climb-analytics-custom { gap: 10px; }
+  .climb-analytics-metric { padding: 17px 15px; }
+  .climb-analytics-metric > span { font-size: 10px; }
+  .climb-analytics-metric > strong { font-size: 31px; }
+  .climb-analytics-metric.ca-metric-grade > strong { font-size: 19px; }
+  .climb-analytics-metric > small { font-size: 9px; }
+  .climb-analytics-metrics { gap: 10px; }
+  .climb-analytics-grid { gap: 14px; }
+  .climb-analytics-card > summary { padding: 18px 16px 16px; }
+  .climb-analytics-card > summary strong { font-size: 17px; }
+  .climb-analytics-card-body { padding-inline: 16px; }
+  .climb-analytics-method > summary { padding-inline: 15px; }
+  .climb-analytics-method > div { padding-inline: 15px; }
+}

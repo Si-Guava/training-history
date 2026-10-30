@@ -318,3 +318,52 @@
 @media(prefers-reduced-motion:reduce) {
   .hang-workout-sets > summary span { transition:none; }
 }
+
+/* Recorded max-hang performance stays separate from repeater history. */
+.hang-analytics { min-width:0; margin-bottom:26px; padding:24px; border:1px solid var(--hang-line); border-radius:12px; background:var(--panel); }
+.hang-analytics-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:26px; }
+.hang-analytics-heading h3 { margin-top:7px; font-size:23px; letter-spacing:-.45px; }
+.hang-analytics-heading p,.hang-score-trend > p { color:var(--muted); font-size:11px; line-height:1.65; margin-top:8px; }
+.hang-analytics-controls { display:grid; gap:12px; grid-template-columns:minmax(130px,.7fr) minmax(180px,1.3fr); width:min(54%,640px); min-width:0; }
+.hang-analytics-controls select { text-overflow:ellipsis; }
+.hang-score-summary { display:grid; grid-template-columns:minmax(180px,.8fr) minmax(0,1.5fr); margin-top:22px; border:1px solid var(--line); border-radius:9px; background:#17231c; }
+.hang-score-card { padding:22px; border-right:1px solid var(--line); }
+.hang-score-card > span { display:block; color:var(--hang-accent); font-size:11px; font-weight:650; }
+.hang-score-card > strong { display:block; margin-top:8px; font-size:36px; line-height:1.2; font-weight:550; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+.hang-score-card > strong small { font-size:13px; font-weight:450; letter-spacing:0; color:var(--muted); }
+.hang-score-card p { color:var(--muted); font-size:10px; line-height:1.6; margin-top:9px; }
+.hang-score-breakdown { align-self:center; padding:22px; min-width:0; }
+.hang-score-breakdown strong { color:var(--hang-accent); font-size:18px; font-weight:500; }
+.hang-score-breakdown p { font-size:11px; color:var(--muted); line-height:1.7; margin-top:8px; overflow-wrap:anywhere; }
+.hang-score-method,.hang-score-exclusions { color:var(--muted); font-size:11px; line-height:1.75; margin-top:13px; }
+.hang-score-warning { padding:10px 13px; margin-top:13px; border-left:2px solid #b9a47a; background:#2c2a203d; color:#d4c4a6; font-size:11px; line-height:1.7; }
+.hang-score-trend { padding-top:21px; margin-top:21px; border-top:1px solid var(--line-soft); }
+.hang-score-trend h4 { font-size:14px; font-weight:550; }
+.hang-score-chart { overflow-x:auto; padding-top:12px; }
+.hang-score-chart svg { display:block; width:100%; min-width:450px; max-height:290px; }
+.hang-score-chart text { fill:var(--muted); font-size:11px; font-family:inherit; }
+.hang-score-grid { stroke:var(--line-soft); stroke-width:1; }
+.hang-score-line { fill:none; stroke:var(--hang-accent); stroke-width:2; stroke-opacity:.6; }
+.hang-score-dot { fill:var(--hang-accent); stroke:var(--panel); stroke-width:2; }
+.hang-score-empty { color:var(--muted); font-size:12px; line-height:1.7; padding:24px 16px; margin-top:14px; border:1px dashed var(--line); border-radius:7px; }
+.hang-score-table { margin-top:13px; }
+.hang-score-table > summary { color:var(--hang-accent); cursor:pointer; font-size:11px; padding:8px 0; }
+.hang-score-table > div { overflow-x:auto; }
+.hang-score-table table { width:100%; border-collapse:collapse; margin-top:8px; font-size:11px; text-align:left; }
+.hang-score-table :is(th,td) { padding:11px 13px 11px 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+.hang-score-table th { font-weight:500; color:var(--muted); white-space:nowrap; }
+.hang-score-table td { color:var(--text); min-width:85px; font-variant-numeric:tabular-nums; }
+.hang-score-table td:last-child { min-width:210px; color:var(--muted); overflow-wrap:anywhere; }
+@media(max-width:1000px) {
+  .hang-analytics-heading { flex-direction:column; gap:18px; }
+  .hang-analytics-controls { width:100%; max-width:none; }
+}
+@media(max-width:600px) {
+  .hang-analytics { padding:18px 15px; }
+  .hang-analytics-heading h3 { font-size:21px; }
+  .hang-analytics-controls { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .hang-score-summary { grid-template-columns:minmax(0,1fr); }
+  .hang-score-card { border-right:0; border-bottom:1px solid var(--line); padding:18px; }
+  .hang-score-breakdown { padding:16px 18px; }
+  .hang-score-card > strong { font-size:32px; }
+}
