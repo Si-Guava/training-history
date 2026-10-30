@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="./exercise-archive.css">
 <link rel="stylesheet" href="./repeaters.css">
 <link rel="stylesheet" href="./calendar.css">
+<link rel="stylesheet" href="./week.css">
 <link rel="stylesheet" href="./climbing.css">
 <link rel="stylesheet" href="./hangboard.css">
 <link rel="stylesheet" href="./pwa.css">
@@ -45,7 +46,8 @@
     <div id="pwa-offline-status" class="pwa-status pwa-offline-status" role="status" hidden><strong>You’re offline.</strong><span>Reconnect to load or save workouts. Keep any unfinished form open.</span></div>
     <div id="pwa-update-status" class="pwa-status pwa-update-status" role="status" hidden><strong>An app update is ready.</strong><span>Finish and save your work, then close all Training History windows and reopen the app.</span></div>
     <div class="saved-status" id="saved-status" role="status"><span id="saved-status-text">Loading saved entries…</span><button id="retry-entries" class="text-button" hidden>Retry</button></div>
-    <nav class="view-navigation" role="tablist" aria-label="Training views"><button id="history-tab" role="tab" aria-selected="true" aria-controls="history-view" data-view="history">Strength &amp; progress</button><button id="climbing-tab" role="tab" aria-selected="false" aria-controls="climbing-view" data-view="climbing" tabindex="-1">Climbing</button><button id="hangboard-tab" role="tab" aria-selected="false" aria-controls="hangboard-view" data-view="hangboard" tabindex="-1">Hangboard</button><button id="kilter-tab" role="tab" aria-selected="false" aria-controls="kilter-view" data-view="kilter" tabindex="-1">Kilter board</button><button id="calendar-tab" role="tab" aria-selected="false" aria-controls="calendar-view" data-view="calendar" tabindex="-1">Calendar &amp; plans</button></nav>
+    <nav class="view-navigation" role="tablist" aria-label="Training views"><button id="week-tab" role="tab" aria-selected="false" aria-controls="week-view" data-view="week" tabindex="-1">My week</button><button id="history-tab" role="tab" aria-selected="true" aria-controls="history-view" data-view="history">Strength &amp; progress</button><button id="climbing-tab" role="tab" aria-selected="false" aria-controls="climbing-view" data-view="climbing" tabindex="-1">Climbing</button><button id="hangboard-tab" role="tab" aria-selected="false" aria-controls="hangboard-view" data-view="hangboard" tabindex="-1">Hangboard</button><button id="kilter-tab" role="tab" aria-selected="false" aria-controls="kilter-view" data-view="kilter" tabindex="-1">Kilter board</button><button id="calendar-tab" role="tab" aria-selected="false" aria-controls="calendar-view" data-view="calendar" tabindex="-1">Calendar &amp; plans</button></nav>
+    <section id="week-view" role="tabpanel" aria-labelledby="week-tab" hidden></section>
     <div id="history-view" role="tabpanel" aria-labelledby="history-tab">
     <section class="mobile-library" aria-label="Select an exercise" hidden><label for="mobile-exercise">Exercise</label><select id="mobile-exercise"></select></section>
     <label class="archive-toggle archive-toggle-mobile" hidden><input id="show-archived-mobile" type="checkbox" data-show-archived aria-controls="mobile-exercise"><span>Show archived exercises <span data-archive-count></span></span></label>

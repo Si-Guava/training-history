@@ -5,6 +5,7 @@ import { createSurfaceWorkspace } from './surface-view.js';
 import { getTrainingToday, splitCatalog, chooseLibraryExercise } from './exercise-archive.js';
 import { createDeletionManager } from './deletion-manager.js';
 import { createCalendar } from './calendar.js';
+import { createWeekDashboard } from './week.js';
 import { createClimbingTracker } from './climbing.js';
 import { createHangboardTracker } from './hangboard.js';
 import { describeHoldRecord, renderRepeaterSummary as renderRepeaterRounds } from './repeater-display.js';
@@ -43,7 +44,10 @@ if(!['sets','sessions','volume'].includes(state.fitWeight))state.fitWeight='sets
 if(!['none','plane','quadratic','smooth'].includes(state.surfaceFit))state.surfaceFit='smooth';
 if(!['auto','reps','hold'].includes(state.surfaceAxis))state.surfaceAxis='auto';
 for(const key of ['fitSmoothing','surfaceSmoothing'])state[key]=finite(Number(state[key]))?Math.max(.2,Math.min(1,Number(state[key]))):.55;
-if(!['history','calendar','climbing','kilter','hangboard'].includes(state.view))state.view='history';
+const trainingViews=['week','history','calendar','climbing','kilter','hangboard'];
+const requestedView=new URLSearchParams(window.location.search).get('view');
+if(trainingViews.includes(requestedView))state.view=requestedView;
+if(!trainingViews.includes(state.view))state.view='week';
 if (!byName.has(state.exercise)) state.exercise = catalog[0]?.name || '';
 if (!byName.get(state.exercise)?.metrics.includes(state.metric)) state.metric = byName.get(state.exercise)?.defaultMetric || 'reps';
 state.bodyweight = state.bodyweight !== null && state.bodyweight !== '' && finite(Number(state.bodyweight)) && Number(state.bodyweight) >= 1 && Number(state.bodyweight) <= 1000 ? Number(state.bodyweight) : DEFAULT_BODYWEIGHT;
@@ -59,6 +63,7 @@ let userChoseExercise = false;
 let toastAction = null;
 let deletionManager;
 let calendar;
+let weekDashboard;
 let climbingTracker;
 let kilterTracker;
 let hangboardTracker;
@@ -68,6 +73,7 @@ let entryForm;
 let loadingEntries = false;
 let entryRevision = 0;
 let archiveLoaded = false;
+let archiveRefreshFailed = false;
 
 function persist() { try { localStorage.setItem('training-history-fresh-start-view', JSON.stringify(state)); } catch {} }
 function announce(message) { $('announcement').textContent = message; }
@@ -365,6 +371,7 @@ function rebuildArchive(preferredExercise = null, revealPreferred = false) {
   setText('archive-footer',records.length?number(records.length,0)+' strength records across '+catalog.length+' exercises':'Your training history begins with your first workout.');
   populateLibrary();
   calendar?.refreshRecords();
+  weekDashboard?.refreshRecords();
 }
 function setSavedStatus(message, failed = false, busy = false) {
   setText('saved-status-text',message);
@@ -387,6 +394,7 @@ async function loadEntries(initial = false) {
     savedEntries=body.entries;
     deletions=removed.deletions;
     archiveLoaded=true;
+    archiveRefreshFailed=false;
     $('export-all').disabled=false;
     $('export-csv').disabled=false;
     $('export-all').title='Download your complete active workout history';
@@ -394,7 +402,7 @@ async function loadEntries(initial = false) {
     render();
     setSavedStatus(records.length?'Saved history up to date · '+records.length+' active records':'Ready to log · no strength records yet');
   } catch(error) {
-    if(revision===entryRevision)setSavedStatus(archiveLoaded?'Couldn’t refresh saved history. Showing the last loaded version.':'Couldn’t load your saved history. Retry to show your records; export and deletion are paused until loading succeeds.',true);
+    if(revision===entryRevision){archiveRefreshFailed=true;setSavedStatus(archiveLoaded?'Couldn’t refresh saved history. Showing the last loaded version.':'Couldn’t load your saved history. Retry to show your records; export and deletion are paused until loading succeeds.',true);weekDashboard?.refreshRecords();}
   } finally {clearTimeout(timer);loadingEntries=false;if(revision!==entryRevision)loadEntries();}
 }
 function showSaveToast(message, action = null) {
@@ -432,10 +440,10 @@ async function runToastAction(){
   const action=toastAction;$('undo-entry').disabled=true;
   try{await action.run()}finally{if(toastAction===action)$('undo-entry').disabled=false;}
 }
-function showView(view){
-  state.view=['history','calendar','climbing','kilter','hangboard'].includes(view)?view:'history';
-  const climbingView=['climbing','kilter','hangboard'].includes(state.view);
-  for(const name of ['history','calendar','climbing','kilter','hangboard'])$(name+'-view').hidden=state.view!==name;
+function showView(view,activate=true){
+  state.view=trainingViews.includes(view)?view:'history';
+  const climbingView=['week','climbing','kilter','hangboard'].includes(state.view);
+  for(const name of trainingViews)$(name+'-view').hidden=state.view!==name;
   $('export-csv').hidden=state.view!=='history';
   $('saved-status').hidden=climbingView;
   $('archive-range').hidden=climbingView;
@@ -444,7 +452,9 @@ function showView(view){
   setText('header-entry-label',state.view==='hangboard'?'New hangboard workout':state.view==='kilter'?'New Kilter workout':state.view==='climbing'?'New climbing workout':'Log exercise');
   document.querySelectorAll('[data-view]').forEach(button=>{const active=button.dataset.view===state.view;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;});
   if(state.view!=='history'){chartWorkspace?.close();surfaceWorkspace?.close();}
-  if(state.view==='calendar')calendar?.activate();
+  if(!activate){persist();return;}
+  if(state.view==='week')weekDashboard?.activate();
+  else if(state.view==='calendar')calendar?.activate();
   else if(state.view==='climbing')climbingTracker?.activate();
   else if(state.view==='kilter')kilterTracker?.activate();
   else if(state.view==='hangboard')hangboardTracker?.activate();
@@ -509,10 +519,21 @@ chartWorkspace=createChartWorkspace({panel:$('progression-panel'),host:$('main-c
 surfaceWorkspace=createSurfaceWorkspace({host:$('surface-panel'),onStateChange:patch=>{Object.assign(state,patch);syncControls();persist();renderProgression();renderSurface();},onInspectSession:key=>selectSession(key,true)});
 entryForm=createEntryForm({getRecords:()=>records,getCatalog:()=>catalog,onSaved:handleEntrySaved});
 deletionManager=createDeletionManager({getAllRecords:()=>allRecords,getDeletions:()=>deletions,isReady:()=>archiveLoaded,onDeleted:deletion=>updateDeletion(deletion),onRestored:deletion=>updateDeletion(deletion,true),onNotify:showSaveToast});
-calendar=createCalendar({host:$('calendar-view'),getRecords:()=>records,getCatalog:()=>catalog,isHistoryReady:()=>archiveLoaded,onLogExercise:(name,date)=>entryForm.open(name||state.exercise,{date}),onInspectDate:inspectCalendarDay,announce});
-climbingTracker=createClimbingTracker({host:$('climbing-view'),kind:'climbing',announce});
-kilterTracker=createClimbingTracker({host:$('kilter-view'),kind:'kilter',announce});
-hangboardTracker=createHangboardTracker({host:$('hangboard-view'),announce});
+const refreshWeek=()=>{if(state.view==='week')weekDashboard?.load();};
+calendar=createCalendar({host:$('calendar-view'),getRecords:()=>records,getCatalog:()=>catalog,isHistoryReady:()=>archiveLoaded,onLogExercise:(name,date)=>entryForm.open(name||state.exercise,{date}),onInspectDate:inspectCalendarDay,onChanged:refreshWeek,announce});
+climbingTracker=createClimbingTracker({host:$('climbing-view'),kind:'climbing',announce,onSaved:refreshWeek});
+kilterTracker=createClimbingTracker({host:$('kilter-view'),kind:'kilter',announce,onSaved:refreshWeek});
+hangboardTracker=createHangboardTracker({host:$('hangboard-view'),announce,onSaved:()=>{refreshWeek();loadEntries();}});
+weekDashboard=createWeekDashboard({host:$('week-view'),getRecords:()=>records,getCatalog:()=>catalog,isHistoryReady:()=>archiveLoaded&&!archiveRefreshFailed,onRefreshHistory:()=>loadEntries(),announce,
+  onPlanDate(date){showView('calendar',false);calendar.planDate(date);},
+  onReviewPlan(id,date){showView('calendar',false);calendar.reviewPlan(id,date);},
+  onLogDate(date,type='strength'){
+    if(['hangboard','max_hangs','repeaters'].includes(type)){showView('hangboard',false);hangboardTracker.openNew({date,protocol:type});}
+    else if(type==='kilter'){showView('kilter',false);kilterTracker.openNew({date});}
+    else if(['boulder','lead','toprope','climbing','climbing_4x4'].includes(type)){showView('climbing',false);climbingTracker.openNew({date,category:type==='lead'?'indoor_lead':type==='toprope'?'indoor_toprope':'indoor_boulder',title:type==='climbing_4x4'?'4×4 climbing':''});}
+    else {entryForm.open('',{date});}
+  }
+});
 bindEvents();
 render();
 showView(state.view);

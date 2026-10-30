@@ -53,7 +53,7 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
       <footer class="hang-dialog-footer"><span data-hang-save-hint>Rest is recorded separately from active hang time.</span><div><button type="button" class="button button-outline" data-hang-cancel>Cancel</button><button type="submit" class="button hang-primary" data-hang-save>Save workout</button></div></footer>
     </form></dialog>`;
   const dialog=q('.hang-dialog'),form=q('[data-hang-form]');
-  function focusBack(){if(initialFocus?.isConnected)initialFocus.focus();else q('[data-hang-new]')?.focus();}
+  function focusBack(){if(initialFocus?.isConnected&&!initialFocus.closest('[hidden]'))initialFocus.focus();else q('[data-hang-new]')?.focus();}
   function setStatus(message,error=false){q('[data-hang-status]').textContent=message;q('[data-hang-retry]').hidden=!error;q('.hang-status').classList.toggle('hang-error',error);host.querySelectorAll('[data-hang-new]').forEach(b=>b.disabled=!loaded||loading||actionPending);}
   function notice(message,error=false){q('[data-hang-notice]').textContent=message;q('.hang-notice').hidden=!message;q('.hang-notice').classList.toggle('hang-error',error);q('[data-hang-undo]').hidden=!lastDeleted;q('[data-hang-undo]').disabled=actionPending;announce(message);}
   function filtered(rows){return rows.filter(w=>(filter==='all'||w.protocol===filter)&&(!dateFilter||w.date===dateFilter)&&(!search||[w.title,w.location,w.notes,...w.sets.flatMap(s=>[s.grip,s.setup,s.notes])].join(' ').toLocaleLowerCase().includes(search.toLocaleLowerCase()))).sort((a,b)=>b.date.localeCompare(a.date)||String(b.created_at).localeCompare(String(a.created_at)));}
@@ -128,13 +128,13 @@ export function createHangboardTracker({host,announce=()=>{},onSaved=()=>{}}){
     q('[data-hang-global-add]').hidden=repeaters;q('[data-hang-add-cycle]').hidden=!repeaters;
     q('[data-hang-add-cycle]').disabled=repeaters&&draft.cycles.length>=100;
   }
-  async function openNew(){if(dialog.open||saving||actionPending)return;if(!loaded){await load();if(!loaded){notice('Load your saved hangboard history before starting a workout.',true);return;}}if(dialog.open||saving||actionPending)return;openEditor();}
+  async function openNew(options={}){if(dialog.open||saving||actionPending)return;if(!loaded){await load();if(!loaded){notice('Load your saved hangboard history before starting a workout.',true);return;}}if(dialog.open||saving||actionPending)return;openEditor(null,options);}
   function newCycle(){return {id:uuid(),setIds:[],restAfterCycleSeconds:null};}
-  function openEditor(workout=null){
+  function openEditor(workout=null,options={}){
     if(dialog.open||saving||actionPending||!loaded)return;
     initialFocus=document.activeElement;
-    const protocol=filter==='all'?'repeaters':filter;
-    draft=workout?upgradeHangboardWorkout(clone(workout)):{id:uuid(),date:getTrainingToday(),protocol,title:'',location:'',notes:'',bodyweightLb:null,sets:[],cycles:protocol==='repeaters'?[newCycle()]:[]};
+    const protocol=['repeaters','max_hangs'].includes(options.protocol)?options.protocol:filter==='all'?'repeaters':filter;
+    draft=workout?upgradeHangboardWorkout(clone(workout)):{id:uuid(),date:options.date||getTrainingToday(),protocol,title:'',location:'',notes:'',bodyweightLb:null,sets:[],cycles:protocol==='repeaters'?[newCycle()]:[]};
     dirty=false;bulkRestDrafts.clear();q('[data-hang-sets]').innerHTML='';fillBasics();q('#hangboard-editor-title').textContent=workout?'Edit workout':'New workout';q('[data-hang-save]').textContent=workout?'Save changes':'Save workout';q('[data-hang-save-hint]').textContent='Rest is recorded separately from active hang time.';setFormError('');renderSets();dialog.showModal();q('[data-hang-work-field="date"]').focus();
   }
   function readCycleRest(el,previous){

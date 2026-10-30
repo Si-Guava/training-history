@@ -1,4 +1,5 @@
-import { normalizePlan, planSummary, PLAN_STATUSES, PLAN_STATUS_LABELS } from './plan-model.js';
+import { normalizePlan, planSummary, planDate as validatePlanDate, PLAN_STATUSES, PLAN_STATUS_LABELS } from './plan-model.js';
+import { TRAINING_TYPES, classifyTraining } from './week-model.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const localDate=(date=new Date())=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
@@ -9,8 +10,9 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 function uuid(){if(crypto.randomUUID)return crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const s=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');return `${s.slice(0,8)}-${s.slice(8,12)}-${s.slice(12,16)}-${s.slice(16,20)}-${s.slice(20)}`;}
 const target=()=>({id:uuid(),exercise:'',target:'',status:'planned',comment:''});
 
-export function createCalendar({host,getRecords=()=>[],getCatalog=()=>[],isHistoryReady=()=>true,onLogExercise=()=>{},onInspectDate=()=>{},announce=()=>{}}) {
+export function createCalendar({host,getRecords=()=>[],getCatalog=()=>[],isHistoryReady=()=>true,onLogExercise=()=>{},onInspectDate=()=>{},onChanged=()=>{},announce=()=>{}}) {
   let plans=[],loaded=false,loading=false,revision=0,selected=localDate(),month=selected.slice(0,7),draft=null,saving=false,deleted=null,deletePending=null,notice='',noticeError=false;
+  let loadPromise=null;
   const q=selector=>host.querySelector(selector);
   host.innerHTML=`
     <div class="calendar-heading"><div><span class="eyebrow">PLAN • TRAIN • REFLECT</span><h2>Workout calendar</h2><p>Set a target, log the work, then note how it went.</p></div><button type="button" class="button button-primary" data-cal-new>+ Plan workout</button></div>
@@ -47,21 +49,54 @@ export function createCalendar({host,getRecords=()=>[],getCatalog=()=>[],isHisto
   }
   function renderPlan(plan){
     const summary=planSummary(plan),reviewed=summary.reviewed===summary.total;
-    return `<article class="calendar-plan-card"><div class="calendar-plan-card-head"><h4>${esc(plan.title)}</h4><span class="calendar-plan-badge${reviewed?' calendar-reviewed':''}">${esc(summary.label)}</span></div><ul class="calendar-target-list">${plan.targets.map(t=>`<li><span class="calendar-target-status calendar-status-${t.status}" title="${esc(PLAN_STATUS_LABELS[t.status])}" aria-label="${esc(PLAN_STATUS_LABELS[t.status])}">${{planned:'○',hit:'✓',partial:'◐',missed:'×',skipped:'–'}[t.status]}</span><div><strong>${esc(t.exercise)}</strong><p>${esc(t.target)}</p>${t.status!=='planned'?`<span class="calendar-result-label">${esc(PLAN_STATUS_LABELS[t.status])}</span>`:''}${t.comment?`<blockquote>${esc(t.comment)}</blockquote>`:''}</div></li>`).join('')}</ul>${plan.notes?`<div class="calendar-plan-notes"><span>Workout notes</span><p>${esc(plan.notes)}</p></div>`:''}<div class="calendar-plan-actions"><button type="button" class="button button-outline" data-cal-edit="${plan.id}">${summary.reviewed?'Edit / review':'Review targets'}</button><button type="button" class="text-button" data-cal-log-plan="${plan.id}">Log actual</button><button type="button" class="calendar-delete-link" data-cal-delete="${plan.id}" aria-label="Delete ${esc(plan.title)}">Delete</button></div>${deletePending===plan.id?`<div class="calendar-delete-confirm"><p>Delete this plan and its reviews?</p><button type="button" class="calendar-danger-button" data-cal-confirm-delete="${plan.id}">Delete plan</button><button type="button" class="text-button" data-cal-keep>Keep plan</button></div>`:''}</article>`;
+    return `<article class="calendar-plan-card"><div class="calendar-plan-card-head"><h4>${esc(plan.title)}</h4><span class="calendar-plan-badge${reviewed?' calendar-reviewed':''}">${esc(summary.label)}</span></div><ul class="calendar-target-list">${plan.targets.map(t=>`<li><span class="calendar-target-status calendar-status-${t.status}" title="${esc(PLAN_STATUS_LABELS[t.status])}" aria-label="${esc(PLAN_STATUS_LABELS[t.status])}">${{planned:'○',hit:'✓',partial:'◐',missed:'×',skipped:'–'}[t.status]}</span><div><strong>${esc(t.exercise)}</strong><p>${esc(t.target)}</p>${t.trainingType||t.plannedSets?`<small class="calendar-target-meta">${esc(TRAINING_TYPES.find(type=>type.id===t.trainingType)?.label||'Strength')}${t.plannedSets?' · '+t.plannedSets+' planned working sets':''}</small>`:''}${t.status!=='planned'?`<span class="calendar-result-label">${esc(PLAN_STATUS_LABELS[t.status])}</span>`:''}${t.comment?`<blockquote>${esc(t.comment)}</blockquote>`:''}</div></li>`).join('')}</ul>${plan.notes?`<div class="calendar-plan-notes"><span>Workout notes</span><p>${esc(plan.notes)}</p></div>`:''}<div class="calendar-plan-actions"><button type="button" class="button button-outline" data-cal-edit="${plan.id}">${summary.reviewed?'Edit / review':'Review targets'}</button><button type="button" class="text-button" data-cal-log-plan="${plan.id}">Log actual</button><button type="button" class="calendar-delete-link" data-cal-delete="${plan.id}" aria-label="Delete ${esc(plan.title)}">Delete</button></div>${deletePending===plan.id?`<div class="calendar-delete-confirm"><p>Delete this plan and its reviews?</p><button type="button" class="calendar-danger-button" data-cal-confirm-delete="${plan.id}">Delete plan</button><button type="button" class="text-button" data-cal-keep>Keep plan</button></div>`:''}</article>`;
   }
   async function request(method,payload,query=''){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
     try{const response=await fetch('/api/plans'+query,{method,cache:'no-store',headers:{Accept:'application/json',...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),signal:controller.signal});let body;try{body=await response.json();}catch{throw new Error('The response could not be read. Keep your draft open and retry.');}if(!response.ok){const error=new Error(body.error||'The change could not be saved. Please retry.');error.conflict=body.conflict||response.status===409;throw error;}return body;}catch(error){if(error.name==='AbortError')throw new Error('The request timed out. Retry to confirm the change; it will not duplicate a plan.');throw error;}finally{clearTimeout(timer);}
   }
-  async function load(){
-    if(loading)return;loading=true;const started=revision;setStatus('Loading saved plans…');
-    try{const body=await request('GET');if(!Array.isArray(body.plans))throw new Error('Your saved plans could not be read.');if(started!==revision)return;plans=body.plans;loaded=true;setStatus('Plans and reviews are up to date.');render();}
-    catch(error){setStatus('Couldn’t load saved plans. Your draft and logged workout history are still available.',true);}
-    finally{loading=false;if(started!==revision)load();}
+  function load(){
+    if(loadPromise)return loadPromise;
+    loading=true;const started=revision;setStatus('Loading saved plans…');
+    loadPromise=(async()=>{
+      try{const body=await request('GET');if(!Array.isArray(body.plans))throw new Error('Your saved plans could not be read.');if(started!==revision)return;plans=body.plans;loaded=true;setStatus('Plans and reviews are up to date.');render();onChanged();}
+      catch(error){setStatus('Couldn’t load saved plans. Your draft and logged workout history are still available.',true);}
+    })().finally(()=>{loading=false;loadPromise=null;if(started!==revision)return load();});
+    return loadPromise;
   }
   function selectDate(date,focus=false){selected=date;month=date.slice(0,7);deletePending=null;render();if(focus)q(`[data-cal-date="${date}"]`)?.focus();}
-  function readDraft(){if(!draft)return;draft.title=form.elements.title.value;draft.date=form.elements.date.value;draft.notes=form.elements.notes.value;draft.targets=[...q('[data-cal-targets]').children].map(el=>({id:el.dataset.targetId,exercise:el.querySelector('[data-field="exercise"]').value,target:el.querySelector('[data-field="target"]').value,status:el.querySelector('[data-field="status"]').value,comment:el.querySelector('[data-field="comment"]').value}));}
-  function renderTargets(){q('[data-cal-targets]').innerHTML=draft.targets.map((item,index)=>`<section class="calendar-target-editor" data-target-id="${item.id}"><div class="calendar-target-editor-head"><strong>Target ${index+1}</strong><button type="button" class="calendar-remove-target" data-cal-remove="${item.id}" ${draft.targets.length<2?'disabled':''}>Remove</button></div><label>Exercise or activity<input data-field="exercise" list="calendar-exercise-options" maxlength="120" required placeholder="e.g. Pull-up or Hangboard" value="${esc(item.exercise)}"></label><label>Target<textarea data-field="target" maxlength="1000" rows="2" required placeholder="e.g. 3 sets of 8 at 50 lb, or 3 rounds × 6 hangs at 7s on / 3s off">${esc(item.target)}</textarea></label><div class="calendar-review-fields"><label>Result<select data-field="status">${PLAN_STATUSES.map(status=>`<option value="${status}" ${item.status===status?'selected':''}>${PLAN_STATUS_LABELS[status]}</option>`).join('')}</select></label><label>What happened? <span class="calendar-optional">Optional</span><textarea data-field="comment" maxlength="2000" rows="2" placeholder="e.g. First two sets hit; last set stopped at 6 reps.">${esc(item.comment)}</textarea></label></div></section>`).join('');q('[data-cal-add]').disabled=draft.targets.length>=30;}
+  function readDraft(){
+    if(!draft)return;
+    draft.title=form.elements.title.value;draft.date=form.elements.date.value;draft.notes=form.elements.notes.value;
+    draft.targets=[...q('[data-cal-targets]').children].map(el=>{
+      const value=field=>el.querySelector(`[data-field="${field}"]`).value;
+      const item={id:el.dataset.targetId,exercise:value('exercise'),target:value('target'),status:value('status'),comment:value('comment')};
+      const trainingType=value('trainingType'),setsInput=el.querySelector('[data-field="plannedSets"]');
+      if(trainingType)item.trainingType=trainingType;
+      if(!setsInput.disabled&&setsInput.value!==''){item.trainingType='strength';item.plannedSets=setsInput.valueAsNumber;}
+      return item;
+    });
+  }
+  function renderTargets(){
+    q('[data-cal-targets]').innerHTML=draft.targets.map((item,index)=>`<section class="calendar-target-editor" data-target-id="${item.id}">
+      <div class="calendar-target-editor-head"><strong>Target ${index+1}</strong><button type="button" class="calendar-remove-target" data-cal-remove="${item.id}" ${draft.targets.length<2?'disabled':''}>Remove</button></div>
+      <label>Exercise or activity<input data-field="exercise" list="calendar-exercise-options" maxlength="120" required placeholder="e.g. Pull-up or Hangboard" value="${esc(item.exercise)}"></label>
+      <div class="calendar-target-metadata"><label>Training type<select data-field="trainingType"><option value="" ${!item.trainingType?'selected':''}>Auto · based on activity name</option>${TRAINING_TYPES.map(type=>`<option value="${type.id}" ${item.trainingType===type.id?'selected':''}>${esc(type.label)}</option>`).join('')}</select></label><label data-cal-sets-label>Planned working sets <span class="calendar-inline-optional">Optional · strength only</span><input data-field="plannedSets" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="e.g. 3" value="${esc(item.plannedSets??'')}"></label></div>
+      <p class="calendar-type-hint" data-cal-type-hint></p>
+      <label>Target<textarea data-field="target" maxlength="1000" rows="2" required placeholder="e.g. 3 sets of 8 at 50 lb, or 3 rounds × 6 hangs at 7s on / 3s off">${esc(item.target)}</textarea></label>
+      <div class="calendar-review-fields"><label>Result<select data-field="status">${PLAN_STATUSES.map(status=>`<option value="${status}" ${item.status===status?'selected':''}>${PLAN_STATUS_LABELS[status]}</option>`).join('')}</select></label><label>What happened? <span class="calendar-optional">Optional</span><textarea data-field="comment" maxlength="2000" rows="2" placeholder="e.g. First two sets hit; last set stopped at 6 reps.">${esc(item.comment)}</textarea></label></div>
+    </section>`).join('');
+    q('[data-cal-add]').disabled=draft.targets.length>=30;
+    q('[data-cal-targets]').querySelectorAll('.calendar-target-editor').forEach(updateTargetMetadata);
+  }
+  function updateTargetMetadata(element){
+    const name=element.querySelector('[data-field="exercise"]').value,explicit=element.querySelector('[data-field="trainingType"]').value;
+    const type=classifyTraining(name,explicit),info=TRAINING_TYPES.find(item=>item.id===type);
+    const sets=element.querySelector('[data-field="plannedSets"]'),strength=type==='strength';
+    sets.disabled=!strength;
+    element.querySelector('[data-cal-sets-label]').classList.toggle('calendar-metadata-disabled',!strength);
+    element.querySelector('[data-cal-type-hint]').textContent=(explicit?'':'Auto: '+(info?.label||'Other training')+'. ')+(strength?'Enter working sets for the weekly muscle comparison. Leave blank when unspecified.':'Use the target text for climbs, hangs and protocol details. Strength-set totals stay separate.');
+  }
   function showFormError(message,conflict=false){q('[data-cal-form-error]').textContent=message+(conflict?' Your draft stays open. Reloading replaces it with the saved version.':'');q('.calendar-form-error').hidden=!message;q('[data-cal-reload]').hidden=!conflict||!draft?.revision;}
   function openEditor(plan=null){
     draft=plan?clone(plan):{id:uuid(),date:selected,title:'',targets:[target()],notes:''};
@@ -69,7 +104,7 @@ export function createCalendar({host,getRecords=()=>[],getCatalog=()=>[],isHisto
     form.elements.title.value=draft.title;form.elements.date.value=draft.date;form.elements.notes.value=draft.notes;
     q('#calendar-exercise-options').innerHTML=getCatalog().map(item=>`<option value="${esc(item.name)}"></option>`).join('');
     showFormError('');renderTargets();q('[data-cal-save]').textContent=plan?'Save changes':'Save plan';dialog.showModal();
-    if(plan)q('[data-cal-targets] select')?.focus();else form.elements.title.focus();
+    if(plan)q('[data-cal-targets] [data-field="status"]')?.focus();else form.elements.title.focus();
   }
   function setSaving(value){saving=value;form.querySelector('fieldset').disabled=value;q('[data-cal-save]').disabled=value;q('[data-cal-cancel]').disabled=value;q('[data-cal-close]').disabled=value;q('[data-cal-save]').textContent=value?'Saving…':draft?.revision?'Save changes':'Save plan';}
   function closeEditor(){if(saving)return;dialog.close();draft=null;}
@@ -77,19 +112,19 @@ export function createCalendar({host,getRecords=()=>[],getCatalog=()=>[],isHisto
     event.preventDefault();if(saving)return;readDraft();showFormError('');
     let payload;try{const {canonicalPayload,...value}=normalizePlan(draft);payload={...value,...(draft.revision?{revision:draft.revision}:{})};}catch(error){showFormError(error.message);return;}
     setSaving(true);
-    try{const body=await request(draft.revision?'PUT':'POST',payload);if(!body.plan)throw new Error('The saved plan could not be confirmed. Please retry.');revision++;putPlan(body.plan);selected=body.plan.date;month=selected.slice(0,7);dialog.close();draft=null;render();setStatus('Plans and reviews are up to date.');showNotice('Workout plan saved.');load();}
+    try{const body=await request(draft.revision?'PUT':'POST',payload);if(!body.plan)throw new Error('The saved plan could not be confirmed. Please retry.');revision++;putPlan(body.plan);selected=body.plan.date;month=selected.slice(0,7);dialog.close();draft=null;render();setStatus('Plans and reviews are up to date.');showNotice('Workout plan saved.');onChanged();load();}
     catch(error){showFormError(error.message,error.conflict);}
     finally{setSaving(false);}
   }
   async function deletePlan(id){
     const plan=plans.find(p=>p.id===id);if(!plan)return;
     const button=q(`[data-cal-confirm-delete="${id}"]`);if(button){button.disabled=true;button.textContent='Deleting…';}
-    try{const body=await request('DELETE',null,'?id='+encodeURIComponent(id)+'&revision='+plan.revision);revision++;plans=plans.filter(p=>p.id!==id);deleted={id,revision:body.revision};deletePending=null;render();showNotice('Plan deleted.');load();}
+    try{const body=await request('DELETE',null,'?id='+encodeURIComponent(id)+'&revision='+plan.revision);revision++;plans=plans.filter(p=>p.id!==id);deleted={id,revision:body.revision};deletePending=null;render();showNotice('Plan deleted.');onChanged();load();}
     catch(error){showNotice(error.message,true);if(button){button.disabled=false;button.textContent='Delete plan';}}
   }
   async function undoDelete(){
     if(!deleted)return;const pending={...deleted};q('[data-cal-undo]').disabled=true;
-    try{const body=await request('PATCH',{...pending,action:'restore'});revision++;putPlan(body.plan);deleted=null;selectDate(body.plan.date);showNotice('Plan restored.');load();}
+    try{const body=await request('PATCH',{...pending,action:'restore'});revision++;putPlan(body.plan);deleted=null;selectDate(body.plan.date);showNotice('Plan restored.');onChanged();load();}
     catch(error){showNotice(error.message,true);}
   }
   host.addEventListener('click',event=>{
@@ -115,12 +150,27 @@ export function createCalendar({host,getRecords=()=>[],getCatalog=()=>[],isHisto
   });
   async function reloadDraft(){
     const id=draft?.id;if(!id)return;q('[data-cal-reload]').disabled=true;
-    try{const body=await request('GET'),latest=body.plans?.find(p=>p.id===id);if(!latest)throw new Error('This plan was deleted. Your draft remains open so you can copy any notes.');plans=body.plans;loaded=true;draft=clone(latest);form.elements.title.value=draft.title;form.elements.date.value=draft.date;form.elements.notes.value=draft.notes;renderTargets();showFormError('');render();announce('Latest saved plan loaded.');}catch(error){showFormError(error.message,true);}finally{q('[data-cal-reload]').disabled=false;}
+    try{const body=await request('GET'),latest=body.plans?.find(p=>p.id===id);if(!latest)throw new Error('This plan was deleted. Your draft remains open so you can copy any notes.');plans=body.plans;loaded=true;draft=clone(latest);form.elements.title.value=draft.title;form.elements.date.value=draft.date;form.elements.notes.value=draft.notes;renderTargets();showFormError('');render();onChanged();announce('Latest saved plan loaded.');}catch(error){showFormError(error.message,true);}finally{q('[data-cal-reload]').disabled=false;}
   }
   q('[data-cal-jump]').addEventListener('change',event=>{if(/^\d{4}-\d{2}$/.test(event.target.value)){month=event.target.value;render();}});
   q('[data-cal-grid]').addEventListener('keydown',event=>{const current=event.target.closest('[data-cal-date]');if(!current)return;const offset={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7}[event.key];if(!offset)return;event.preventDefault();const date=toDate(current.dataset.calDate);date.setDate(date.getDate()+offset);selectDate(localDate(date),true);});
+  q('[data-cal-targets]').addEventListener('input',event=>{if(event.target.matches('[data-field="exercise"],[data-field="trainingType"]'))updateTargetMetadata(event.target.closest('.calendar-target-editor'));});
+  q('[data-cal-targets]').addEventListener('change',event=>{if(event.target.matches('[data-field="trainingType"]'))updateTargetMetadata(event.target.closest('.calendar-target-editor'));});
   form.addEventListener('submit',save);
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeEditor();});
   render();
-  return {load,refreshRecords:render,activate(){render();if(!loaded&&!loading)load();},getPlans:()=>clone(plans)};
+  return {
+    load,refreshRecords:render,
+    activate(){render();if(!loaded&&!loading)return load();return loadPromise;},
+    getPlans:()=>clone(plans),
+    planDate(date){if(saving)return;selectDate(validatePlanDate(date));openEditor();},
+    async reviewPlan(id,date){
+      if(saving)return;
+      if(date)selectDate(validatePlanDate(date));
+      await load();
+      const plan=plans.find(item=>item.id===id);
+      if(plan){selectDate(plan.date);openEditor(plan);}
+      else showNotice('This plan is no longer available. Check the selected day or retry loading plans.',true);
+    }
+  };
 }

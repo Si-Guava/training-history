@@ -1,6 +1,7 @@
 /** Shared validation for planned workouts and the owner's target reviews. */
 export const PLAN_STATUSES = ['planned', 'hit', 'partial', 'missed', 'skipped'];
 export const PLAN_STATUS_LABELS = {planned:'Planned',hit:'Hit target',partial:'Partly hit',missed:'Missed target',skipped:'Skipped'};
+export const PLAN_TRAINING_TYPES = Object.freeze(['strength','boulder','lead','toprope','kilter','climbing_4x4','climbing','max_hangs','repeaters','hangboard','other']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class PlanValidationError extends Error {
@@ -47,7 +48,18 @@ export function normalizePlan(input) {
     seen.add(targetId);
     const status=item.status??'planned';
     if(!PLAN_STATUSES.includes(status))fail(`${prefix}.status`,'Choose a target result.');
-    return {id:targetId,exercise:text(item.exercise,`${prefix}.exercise`,120,true),target:text(item.target,`${prefix}.target`,1000,true,true),status,comment:text(item.comment,`${prefix}.comment`,2000,false,true)};
+    const result={id:targetId,exercise:text(item.exercise,`${prefix}.exercise`,120,true),target:text(item.target,`${prefix}.target`,1000,true,true),status,comment:text(item.comment,`${prefix}.comment`,2000,false,true)};
+    // Keep absent metadata absent: old clients' retry hashes remain identical.
+    if(item.trainingType!=null&&item.trainingType!=='') {
+      if(!PLAN_TRAINING_TYPES.includes(item.trainingType))fail(`${prefix}.trainingType`,'Choose a supported training type, or Auto.');
+      result.trainingType=item.trainingType;
+    }
+    if(item.plannedSets!=null&&item.plannedSets!=='') {
+      if(!Number.isSafeInteger(item.plannedSets)||item.plannedSets<1||item.plannedSets>1000)fail(`${prefix}.plannedSets`,'Enter a whole number of strength working sets from 1 to 1,000, or leave it blank.');
+      if(result.trainingType&&result.trainingType!=='strength')fail(`${prefix}.plannedSets`,'Planned working sets apply to strength targets. Use the target text for climbing and hangboard protocols.');
+      result.plannedSets=item.plannedSets;
+    }
+    return result;
   });
   const plan={id,date,title,targets,notes:text(input.notes,'notes',4000,false,true)};
   const canonicalPayload=JSON.stringify({date,title,targets,notes:plan.notes});

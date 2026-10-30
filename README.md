@@ -12,6 +12,19 @@ Open the deployed HTTPS app and sign in with an account allowed by its private s
 
 Loading and saving workouts requires an internet connection. An offline launch shows a reconnect screen; it does not show cached training history or queue writes. Save a draft before closing the app. Updates wait for the existing app windows to close so an update does not reload an open workout form.
 
+## My week
+
+The **My week** tab opens a Monday–Sunday dashboard; `/?view=week` links directly to it. Select any week and any comparison week, or use the surrounding-weeks table to inspect past work and future plans. All type filters apply to the summary cards, daily detail, comparisons and muscle coverage. Training-day boundaries follow the existing America/Toronto convention and calendar arithmetic handles daylight-saving and year changes.
+
+- **Planned exercises** count calendar targets. **Completed targets** count only targets explicitly reviewed as **Hit target**. Partial, missed, skipped and unreviewed results remain distinct; logging a set never changes a target review.
+- **Logged activities** count distinct working strength exercises within sessions and nonempty climbing or hangboard workouts. Strength sets, climbing attempts/sends and hangboard sets/active seconds retain separate units. Warm-ups, failed strength sets, empty workouts and duplicate/imported copies do not inflate working-volume totals.
+- Each calendar target can optionally specify a **training type** and **planned strength working sets**. Existing targets continue to work; Auto classifies the activity name, while structured set counts are never inferred from free text. A 4×4 climbing workout is recognized by its title; an explicit plan type takes precedence over inference.
+- Muscle coverage separates primary and supporting contributions across 14 broad groups, with planned/logged and measure controls, a body map, same-unit week comparisons, and a list of contributing exercises. Missing planned set counts remain unknown. Unidentified exercises and ambiguous pulldowns remain unmapped. A displayed gap means no mapped primary exposure under the selected measure and filters; it does not measure activation, recovery, or training adequacy.
+- Failed data requests are visible and retryable; unavailable data is distinguished from an empty week. Read-only summaries use the existing APIs and do not rewrite historical workouts.
+
+Implementation: `public/week-model.js`, `public/week.js`, and `public/week.css`. Focused verification: `node test-week-model.mjs`, `node test-week-plans.mjs`, and `npm test`.
+
+
 ## What it does
 
 | Area | Features |
