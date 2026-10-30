@@ -335,6 +335,10 @@
 .hang-score-breakdown { align-self:center; padding:22px; min-width:0; }
 .hang-score-breakdown strong { color:var(--hang-accent); font-size:18px; font-weight:500; }
 .hang-score-breakdown p { font-size:11px; color:var(--muted); line-height:1.7; margin-top:8px; overflow-wrap:anywhere; }
+.hang-score-calculation { margin-top:8px; max-width:420px; }
+.hang-score-calculation > summary { color:var(--hang-accent); font-size:11px; line-height:1.6; cursor:pointer; }
+.hang-score-calculation p { margin-top:7px; color:var(--muted); font-size:11px; line-height:1.75; overflow-wrap:anywhere; }
+.hang-outcome-fields > label:only-child { grid-column:1 / -1; }
 .hang-score-method,.hang-score-exclusions { color:var(--muted); font-size:11px; line-height:1.75; margin-top:13px; }
 .hang-score-warning { padding:10px 13px; margin-top:13px; border-left:2px solid #b9a47a; background:#2c2a203d; color:#d4c4a6; font-size:11px; line-height:1.7; }
 .hang-score-trend { padding-top:21px; margin-top:21px; border-top:1px solid var(--line-soft); }
@@ -353,6 +357,8 @@
 .hang-score-table :is(th,td) { padding:11px 13px 11px 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
 .hang-score-table th { font-weight:500; color:var(--muted); white-space:nowrap; }
 .hang-score-table td { color:var(--text); min-width:85px; font-variant-numeric:tabular-nums; }
+.hang-score-table td small { display:block; margin-top:4px; color:var(--muted); line-height:1.6; }
+.hang-score-table .hang-score-calculation { min-width:150px; }
 .hang-score-table td:last-child { min-width:210px; color:var(--muted); overflow-wrap:anywhere; }
 @media(max-width:1000px) {
   .hang-analytics-heading { flex-direction:column; gap:18px; }

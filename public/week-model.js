@@ -251,7 +251,7 @@ export function buildWeekSummary({date=localDate(),today=localDate(),records=[],
     item.maxHangSeconds=item.maxHangAnalytics.holds.reduce((sum,hold)=>sum+hold.seconds,0);
     selectedHangs.push({...workout,sets});
     for(const set of sets) {
-      if(set.isWarmup===true||set.status==='failed')continue;
+      if(set.isWarmup===true||(workout.protocol!=='max_hangs'&&set.status==='failed'))continue;
       const seconds=list(set.segments).reduce((sum,part)=>sum+(positive(part?.seconds)&&Number.isInteger(part.count)&&part.count>0?part.seconds*part.count:0),0);
       if(seconds>0){item.hangSets++;item.hangSeconds+=seconds;}
     }

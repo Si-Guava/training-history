@@ -40,11 +40,14 @@ test('no-hang recorded loads do not borrow bodyweight or enter the hang score', 
   assert.throws(() => summarizeMaxHangs([noHang], {measurement: 'all'}), RangeError);
 });
 
-test('unknown, partial and failed results never become successful score records', () => {
-  for (const status of ['unknown', 'partial', 'failed', undefined, null, true]) {
+test('every saved max-hang set counts without a marked-completed requirement', () => {
+  for (const status of ['completed', 'unknown', 'partial', 'failed', undefined, null, true]) {
     const value = scoreMaxHangSet(workout(), hold({status}));
-    assert.equal(value.score, null); assert.equal(value.reason, 'not_completed');
+    assert.equal(value.score, 1750); assert.equal(value.reason, null); assert.equal(value.eligible, true);
   }
+  assert.equal(Object.hasOwn(MAX_HANG_EXCLUSION_LABELS, 'not_completed'), false);
+  const sets = ['unknown', 'partial', 'failed', undefined].map(status => hold({status}));
+  assert.equal(summarizeMaxHangs([workout({sets})]).score, 7000);
 });
 
 test('warm-ups and unrecorded warm-up state cannot produce a score', () => {
@@ -75,11 +78,53 @@ test('unsupported, nonnumeric, negative and zero supported loads stay unscored',
   assert.equal(scoreMaxHangSet(workout(), hold({loadLb: 0})).score, 1500);
 });
 
-test('summary takes the best single hold instead of summed training volume', () => {
+test('a session score sums the actual load-time contribution of every working set', () => {
   const w = workout({sets: [hold({loadLb: 25}), hold({loadLb: 30}), hold({loadLb: 15})]});
   const value = summarizeMaxHangs([w]);
-  assert.equal(value.score, 1800); assert.equal(value.best.loadLb, 180); assert.equal(value.scoredHolds, 3);
-  assert.equal(value.byWorkout.length, 1); assert.equal(value.byWorkout[0].score, 1800); assert.equal(value.byWorkout[0].scoredHolds, 3);
+  assert.equal(value.score, 5200); assert.equal(value.best.loadLb, null); assert.equal(value.scoredHolds, 3);
+  assert.equal(value.best.minLoadLb, 165); assert.equal(value.best.maxLoadLb, 180); assert.equal(value.best.totalSeconds, 30);
+  assert.equal(value.byWorkout.length, 1); assert.equal(value.byWorkout[0].score, 5200); assert.equal(value.byWorkout[0].scoredHolds, 3);
+  assert.equal(value.totalScore, 5200); assert.equal(value.totalSeconds, 30);
+});
+
+test('equal sets are weight multiplied by set count and hold time', () => {
+  const value = summarizeMaxHangs([workout({sets: Array.from({length: 5}, () => hold({status: 'unknown'}))})]);
+  assert.equal(value.score, 175 * 5 * 10);
+  assert.equal(value.best.loadLb, 175); assert.equal(value.best.totalSeconds, 50); assert.equal(value.best.scoredHolds, 5);
+});
+
+test('varied durations and assisted loads are weighted per set, with recovery excluded', () => {
+  const value = summarizeMaxHangs([workout({sets: [
+    hold({loadLb: 25, segments: [{count: 1, seconds: 7}], restAfterSetSeconds: 180}),
+    hold({loadLb: 30, segments: [{count: 1, seconds: 10}], restAfterSetSeconds: 300}),
+    hold({loadMode: 'assisted', loadLb: 20, segments: [{count: 1, seconds: 6.5}]}),
+  ]})]);
+  assert.equal(value.score, 175 * 7 + 180 * 10 + 130 * 6.5);
+  assert.equal(value.best.totalSeconds, 23.5); assert.equal(value.best.minLoadLb, 130); assert.equal(value.best.maxLoadLb, 180);
+});
+
+test('different sessions on the same day stay separate and the headline selects the best session', () => {
+  const a = workout({id: 'session-a', sets: [hold({loadLb: 100})]});
+  const b = workout({id: 'session-b', sets: [hold(), hold(), hold()]});
+  const value = summarizeMaxHangs([a, b]);
+  assert.equal(value.byWorkout.length, 2); assert.deepEqual(value.byWorkout.map(row => row.score), [2500, 5250]);
+  assert.equal(value.score, 5250); assert.equal(value.best.workoutId, b.id); assert.equal(value.best.scoredHolds, 3);
+  assert.equal(value.totalScore, 7750); assert.equal(value.totalSeconds, 40);
+});
+
+test('session totals exclude warm-ups, invalid time and load, and separate no-hang sets', () => {
+  const w = workout({sets: [
+    hold({status: 'unknown'}), hold({status: 'failed'}),
+    hold({isWarmup: true}), hold({loadMode: 'unknown', loadLb: null}),
+    hold({segments: [{count: 1, seconds: 0}]}),
+    hold({loadMode: 'absolute', loadLb: 40}), hold({loadMode: 'absolute', loadLb: 50}),
+  ]});
+  const value = summarizeMaxHangs([w]);
+  assert.equal(value.score, 3500); assert.equal(value.best.scoredHolds, 2); assert.equal(value.best.totalSeconds, 20);
+  assert.deepEqual(value.excluded, {warmup: 1, unknown_load: 1, invalid_duration: 1});
+  const noHang = summarizeMaxHangs([w], {measurement: 'no_hang'});
+  assert.equal(noHang.score, 900); assert.equal(noHang.best.scoredHolds, 2); assert.equal(noHang.best.totalSeconds, 20);
+  assert.equal(noHang.best.minLoadLb, 40); assert.equal(noHang.best.maxLoadLb, 50);
 });
 
 test('inclusive dates handle Monday to Sunday and the daylight-saving boundary', () => {
@@ -110,10 +155,13 @@ test('missing setup metadata never establishes a complete comparison condition',
 test('filtering a setup produces only its score while keeping other setup choices available', () => {
   const w = workout({sets: [hold(), hold({edgeMm: 15, loadLb: 10})]});
   const all = summarizeMaxHangs([w]);
-  assert.equal(all.mixedConditions, true); assert.equal(all.byWorkout.length, 2);
+  assert.equal(all.mixedConditions, true); assert.equal(all.byWorkout.length, 1); assert.equal(all.score, 3350);
+  assert.equal(all.best.conditionKey, null); assert.equal(all.best.conditionComplete, false); assert.equal(all.best.mixedConditions, true);
+  assert.equal(all.best.conditionKeys.length, 2); assert.equal(all.best.scoredHolds, 2);
   const conditionKey = maxHangCondition(w, w.sets[1]).conditionKey;
   const filtered = summarizeMaxHangs([w], {conditionKey});
   assert.equal(filtered.score, 1600); assert.equal(filtered.scoredHolds, 1); assert.equal(filtered.conditions.length, 2); assert.equal(filtered.mixedConditions, false);
+  assert.equal(filtered.best.conditionKey, conditionKey); assert.equal(filtered.best.conditionComplete, true); assert.equal(filtered.best.totalSeconds, 10);
 });
 
 test('newest revision wins before filtering and deleted snapshots cannot revive old scores', () => {
@@ -122,26 +170,32 @@ test('newest revision wins before filtering and deleted snapshots cannot revive 
   const removed = {...updated, revision: 3, deleted_at: '2026-10-31T00:00:00Z'};
   assert.equal(summarizeMaxHangs([removed, old, updated]).score, null);
   assert.equal(summarizeMaxHangs([old, {...updated, date: '2026-11-02'}], {start: '2026-10-26', end: '2026-11-01'}).score, null);
+  for (const snapshots of [[updated, {...updated, deleted_at: '2026-10-31T00:00:00Z'}], [{...updated, deleted_at: '2026-10-31T00:00:00Z'}, updated]]) {
+    assert.equal(summarizeMaxHangs(snapshots).score, null);
+  }
 });
 
 test('duplicate set snapshots do not inflate scored-hold counts', () => {
   const s = hold(), w = workout({sets: [s, {...s, id: s.id.toUpperCase()}]});
-  assert.equal(summarizeMaxHangs([w, w]).scoredHolds, 1);
+  const value = summarizeMaxHangs([w, w]);
+  assert.equal(value.scoredHolds, 1); assert.equal(value.score, 1750); assert.equal(value.best.totalSeconds, 10);
 });
 
-test('best-hold ties are deterministic and keep actual load and time attached', () => {
-  const highLoad = hold({loadLb: 50, segments: [{count: 1, seconds: 10}]}), longer = hold({loadLb: 10, segments: [{count: 1, seconds: 12.5}]});
-  for (const sets of [[highLoad, longer], [longer, highLoad]]) {
-    const best = summarizeMaxHangs([workout({sets})]).best;
-    assert.equal(best.score, 2000); assert.equal(best.loadLb, 200); assert.equal(best.seconds, 10);
+test('session-score ties are deterministic and retain actual loads and times', () => {
+  const a = workout({id: 'session-a', sets: [hold({loadLb: 50, segments: [{count: 1, seconds: 10}]})]});
+  const b = workout({id: 'session-b', sets: [hold({loadLb: 10, segments: [{count: 1, seconds: 12.5}]})]});
+  for (const sessions of [[a, b], [b, a]]) {
+    const best = summarizeMaxHangs(sessions).best;
+    assert.equal(best.score, 2000); assert.equal(best.workoutId, a.id); assert.equal(best.loadLb, 200); assert.equal(best.totalSeconds, 10);
   }
 });
 
 test('unscored records are explained and absence is null rather than zero', () => {
   const value = summarizeMaxHangs([workout({bodyweightLb: null, sets: [hold(), hold({status: 'unknown'}), hold({isWarmup: true})]})]);
   assert.equal(value.score, null); assert.equal(value.best, null); assert.equal(value.scoredHolds, 0); assert.equal(value.recordedHolds, 3);
-  assert.deepEqual(value.excluded, {missing_bodyweight: 1, not_completed: 1, warmup: 1});
+  assert.deepEqual(value.excluded, {missing_bodyweight: 2, warmup: 1});
   assert.equal(summarizeMaxHangs([]).score, null);
+  assert.equal(summarizeMaxHangs([]).totalScore, null);
 });
 
 test('analytics tolerate malformed input and leave source snapshots unchanged', () => {

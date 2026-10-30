@@ -244,15 +244,18 @@ test('weekly sends and attempts agree with shared analytics for duplicate sessio
   assert.equal(result.days[0].sends,1);assert.equal(result.performance.boulder.totals.sends,1);
 });
 
-test('weekly max hang score uses best completed load-time hold, with repeaters excluded',()=>{
-  const set=hangSet({status:'completed',loadMode:'added',loadLb:25,grip:'Half crimp',edgeMm:20,hand:'both',setup:'',segments:[{id:id(),seconds:10,count:1}]});
-  const workout=hang([set],{protocol:'max_hangs',bodyweightLb:150,location:'Test board'});
+test('weekly max hang score sums recorded working sets without completion flags, with repeaters excluded',()=>{
+  const sets=['unknown','partial','failed'].map(status=>hangSet({status,loadMode:'added',loadLb:25,grip:'Half crimp',edgeMm:20,hand:'both',setup:'',segments:[{id:id(),seconds:10,count:1}]}));
+  const workout=hang(sets,{protocol:'max_hangs',bodyweightLb:150,location:'Test board'});
   const repeater=hang([hangSet({status:'completed',loadMode:'added',loadLb:1000})],{bodyweightLb:150});
   const result=summary({hangboardWorkouts:[workout,repeater],plans:[plan([target({exercise:'Repeaters'}),target({exercise:'Max hangs'})])]});
-  assert.equal(result.performance.maxHangs.score,1750);
+  assert.equal(result.performance.maxHangs.score,5250);
   assert.equal(result.performance.maxHangs.best.loadLb,175);
-  assert.equal(result.performance.maxHangs.best.seconds,10);
-  assert.equal(muscle(result,'forearms').maxHangSeconds,10);
+  assert.equal(result.performance.maxHangs.best.totalSeconds,30);
+  assert.equal(result.performance.maxHangs.best.scoredHolds,3);
+  assert.equal(result.actualItems.find(item=>item.type==='max_hangs').hangSets,3);
+  assert.equal(result.actualItems.find(item=>item.type==='max_hangs').hangSeconds,30);
+  assert.equal(muscle(result,'forearms').maxHangSeconds,30);
   assert.equal(muscle(result,'forearms').actualPrimary,1);
   assert.equal(muscle(result,'forearms').plannedPrimary,1);
   assert.equal(result.planned,2);assert.equal(result.loggedExercises,2);
@@ -261,10 +264,25 @@ test('weekly max hang score uses best completed load-time hold, with repeaters e
   assert.equal(muscle(repeaterOnly,'forearms').actualPrimary,0);
   const missingWeight=summary({hangboardWorkouts:[{...workout,bodyweightLb:null}]});
   assert.equal(missingWeight.performance.maxHangs.score,null);
-  assert.equal(missingWeight.performance.maxHangs.excluded.missing_bodyweight,1);
+  assert.equal(missingWeight.performance.maxHangs.excluded.missing_bodyweight,3);
   const wrongSetup=summary({hangboardWorkouts:[workout],maxHangCondition:'different'});
   assert.equal(wrongSetup.performance.maxHangs.score,null);
   assert.equal(muscle(wrongSetup,'forearms').maxHangSeconds,0);
+});
+
+test('weekly max hang performance selects the best session while muscle time includes all sessions',()=>{
+  const set=(loadLb,seconds)=>hangSet({loadMode:'added',loadLb,grip:'Half crimp',edgeMm:20,hand:'both',setup:'',segments:[{id:id(),seconds,count:1}]});
+  const volume=hang([set(25,10),set(50,7),set(10,12)],{protocol:'max_hangs',bodyweightLb:150,location:'Test board'});
+  const heavy=hang([set(150,10)],{protocol:'max_hangs',bodyweightLb:150,location:'Test board'});
+  const result=summary({hangboardWorkouts:[volume,heavy]});
+  assert.equal(result.performance.maxHangs.score,5070);
+  assert.equal(result.performance.maxHangs.best.workoutId,volume.id);
+  assert.equal(result.performance.maxHangs.best.totalSeconds,29);
+  assert.equal(result.performance.maxHangs.best.loadLb,null);
+  assert.equal(result.performance.maxHangs.byWorkout.length,2);
+  assert.equal(result.performance.maxHangs.totalScore,8070);
+  assert.equal(muscle(result,'forearms').maxHangSeconds,39);
+  assert.equal(result.actualItems.find(item=>item.id==='hangboard:'+heavy.id).maxHangAnalytics.score,3000);
 });
 
 test('weekly performance honours Sunday, adjacent weeks and newer equal-revision tombstones',()=>{

@@ -305,7 +305,7 @@ export function summarizeHangboardWorkout(workout={}) {
     }
     summary.activeSeconds+=seconds;
     if (set.isWarmup===true) summary.warmupActiveSeconds+=seconds;
-    else if (set.status!=='failed') summary.workingActiveSeconds+=seconds;
+    else if (workout.protocol==='max_hangs'||set.status!=='failed') summary.workingActiveSeconds+=seconds;
   }
   return summary;
 }

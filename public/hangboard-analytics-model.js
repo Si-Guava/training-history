@@ -1,14 +1,15 @@
 /**
- * Descriptive max-hang analytics. The score is supported load × recorded time
- * (lb·s), not a force measurement, predicted maximum, or physiological model.
- * No current/profile bodyweight or unrecorded result is ever substituted.
+ * Descriptive max-hang analytics. A workout score sums supported load × actual
+ * hold time over its recorded working sets (lb·s). It is a load–time volume
+ * measure, not a force measurement or predicted maximum. A saved max-hang set
+ * represents completed work; legacy result flags do not affect its score.
+ * No current/profile bodyweight is substituted for workout-recorded weight.
  */
 import { hangboardDate } from './hangboard-model.js';
 
 export const MAX_HANG_SCORE_UNIT = 'lb·s';
 export const MAX_HANG_EXCLUSION_LABELS = Object.freeze({
   missing_bodyweight: 'Workout bodyweight not recorded',
-  not_completed: 'Result not marked Completed',
   unknown_load: 'Load not recorded',
   invalid_load: 'Load cannot be scored',
   invalid_duration: 'Single-hold duration missing or invalid',
@@ -57,7 +58,6 @@ export function scoreMaxHangSet(workout = {}, set = {}) {
   if (workout.deleted_at || workout.deletedAt || set.deleted_at || set.deletedAt) return excluded('deleted');
   if (!result.date) return excluded('invalid_date');
   if (set.isWarmup !== false) return excluded(set.isWarmup === true ? 'warmup' : 'unknown_warmup');
-  if (set.status !== 'completed') return excluded('not_completed');
   if (!Array.isArray(set.segments) || set.segments.length !== 1 || set.segments[0]?.count !== 1 || !positive(set.segments[0]?.seconds) || set.segments[0].seconds > 86400) return excluded('invalid_duration');
   result.seconds = set.segments[0].seconds;
   if (!['bodyweight', 'added', 'assisted', 'absolute'].includes(set.loadMode)) return excluded('unknown_load');
@@ -88,24 +88,51 @@ function latestSnapshots(workouts) {
   return [...selected.values()];
 }
 
-const bestFirst = (a, b) => b.score - a.score || b.loadLb - a.loadLb || String(b.date).localeCompare(String(a.date)) || a.workoutId.localeCompare(b.workoutId) || a.setId.localeCompare(b.setId);
+const holdOrder = (a, b) => String(a.date).localeCompare(String(b.date)) || a.workoutId.localeCompare(b.workoutId) || a.setId.localeCompare(b.setId);
+const bestSessionFirst = (a, b) => b.score - a.score || String(b.date).localeCompare(String(a.date)) || a.workoutId.localeCompare(b.workoutId);
+
+/** Aggregate one workout, optionally limited to the selected recorded setup. */
+function scoreSession(holds) {
+  if (!holds.length) return null;
+  const ordered = [...holds].sort(holdOrder), first = ordered[0];
+  const conditions = new Map(ordered.map(hold => [hold.conditionKey, hold]));
+  const conditionKeys = [...conditions.keys()].sort();
+  const mixedConditions = conditionKeys.length > 1;
+  const minLoadLb = Math.min(...ordered.map(hold => hold.loadLb));
+  const maxLoadLb = Math.max(...ordered.map(hold => hold.loadLb));
+  const same = field => ordered.every(hold => hold[field] === first[field]) ? first[field] : null;
+  return {
+    workoutId: first.workoutId, date: first.date, title: first.title, measurement: first.measurement,
+    score: ordered.reduce((sum, hold) => sum + hold.score, 0),
+    scoredHolds: ordered.length, totalSeconds: ordered.reduce((sum, hold) => sum + hold.seconds, 0),
+    loadLb: minLoadLb === maxLoadLb ? minLoadLb : null, minLoadLb, maxLoadLb,
+    bodyweightLb: first.bodyweightLb, addedWeightLb: same('addedWeightLb'), assistanceLb: same('assistanceLb'),
+    loadMode: same('loadMode') || 'mixed', holds: ordered,
+    conditionKey: mixedConditions ? null : first.conditionKey,
+    conditionLabel: mixedConditions ? `${conditionKeys.length} recorded setups` : first.conditionLabel,
+    conditionComplete: !mixedConditions && first.conditionComplete,
+    mixedConditions, conditionKeys,
+  };
+}
 
 /**
- * Best single hold in an inclusive date interval; volume is never summed into
- * this score. `measurement` defaults to genuine hangs; no-hangs stay separate.
+ * Sum each unique set's supported load × actual time within its workout.
+ * `score` and `best` describe the highest-scoring session in the inclusive date
+ * interval; `byWorkout` retains every session. `measurement` defaults to hangs,
+ * so the logger's separate no-hang loads never enter the same score.
  */
 export function summarizeMaxHangs(workouts = [], {start = null, end = null, conditionKey = null, measurement = 'hang'} = {}) {
   if (start !== null && !validDate(start) || end !== null && !validDate(end)) throw new RangeError('Use valid calendar dates for max-hang analytics.');
   if (start && end && start > end) throw new RangeError('The start date must not be after the end date.');
   if (!['hang', 'no_hang'].includes(measurement)) throw new RangeError('Choose hangs or no-hangs.');
-  const holds = [], excluded = {}, available = new Map();
+  const holds = [], sessions = [], excluded = {}, available = new Map();
   const countExcluded = reason => { excluded[reason] = (excluded[reason] || 0) + 1; };
   let recordedHolds = 0;
   for (const workout of latestSnapshots(workouts)) {
     if (workout.deleted_at || workout.deletedAt || workout.protocol !== 'max_hangs') continue;
     const date = validDate(workout.date);
     if (!date || start && date < start || end && date > end) continue;
-    const seenSets = new Set();
+    const seenSets = new Set(), sessionHolds = [], conditionHolds = new Map();
     for (const set of Array.isArray(workout.sets) ? workout.sets : []) {
       if (!set || typeof set !== 'object' || Array.isArray(set)) continue;
       const setKey = key(set.id);
@@ -118,27 +145,32 @@ export function summarizeMaxHangs(workouts = [], {start = null, end = null, cond
       condition.recordedHolds++;
       if (hold.eligible) {
         condition.scoredHolds++;
-        if (!condition.best || bestFirst(hold, condition.best) < 0) condition.best = hold;
+        if (!conditionHolds.has(hold.conditionKey)) conditionHolds.set(hold.conditionKey, []);
+        conditionHolds.get(hold.conditionKey).push(hold);
       }
       if (conditionKey && hold.conditionKey !== conditionKey) continue;
       recordedHolds++;
       if (!hold.eligible) { countExcluded(hold.reason); continue; }
       holds.push(hold);
+      sessionHolds.push(hold);
+    }
+    const session = scoreSession(sessionHolds);
+    if (session) sessions.push(session);
+    for (const [key, rows] of conditionHolds) {
+      const condition = available.get(key), conditionSession = scoreSession(rows);
+      if (!condition.best || bestSessionFirst(conditionSession, condition.best) < 0) condition.best = conditionSession;
     }
   }
-  holds.sort(bestFirst);
-  const byWorkout = new Map();
-  for (const hold of holds) {
-    const id = `${hold.workoutId}:${hold.conditionKey}`;
-    if (!byWorkout.has(id)) byWorkout.set(id, {workoutId: hold.workoutId, date: hold.date, title: hold.title, conditionKey: hold.conditionKey, conditionLabel: hold.conditionLabel, conditionComplete: hold.conditionComplete, measurement: hold.measurement, score: hold.score, best: hold, scoredHolds: 0});
-    byWorkout.get(id).scoredHolds++;
-  }
+  holds.sort(holdOrder);
+  const best = [...sessions].sort(bestSessionFirst)[0] ?? null;
   const conditions = [...available.values()].sort((a, b) => a.label.localeCompare(b.label) || a.key.localeCompare(b.key));
   const activeConditionKeys = new Set(holds.map(hold => hold.conditionKey));
   return {
-    score: holds[0]?.score ?? null, best: holds[0] ?? null, unit: MAX_HANG_SCORE_UNIT,
+    score: best?.score ?? null, best, unit: MAX_HANG_SCORE_UNIT,
     scoredHolds: holds.length, recordedHolds, excluded, holds, conditions,
-    byWorkout: [...byWorkout.values()].sort((a, b) => a.date.localeCompare(b.date) || a.workoutId.localeCompare(b.workoutId) || a.conditionKey.localeCompare(b.conditionKey)),
+    totalScore: sessions.length ? sessions.reduce((sum, session) => sum + session.score, 0) : null,
+    totalSeconds: holds.reduce((sum, hold) => sum + hold.seconds, 0),
+    byWorkout: sessions.sort((a, b) => a.date.localeCompare(b.date) || a.workoutId.localeCompare(b.workoutId)),
     mixedConditions: activeConditionKeys.size > 1,
     conditionsIncomplete: holds.some(hold => !hold.conditionComplete),
     start, end, measurement,
